@@ -1,0 +1,7 @@
+catalyst[cv]==20.2
+
+# Used in scripts
+jinja2
+pandas>=0.22
+safitty>=1.2.3
+tqdm>=4.33.0
