@@ -5,5 +5,9 @@ from catalyst.dl.runner import GanRunner as Runner
 from . import callbacks, models, transforms
 from .experiment import MnistGanExperiment as Experiment
 
+#
+from torchvision.models import resnet18
+registry.Model(resnet18)
+
 registry.CALLBACKS.add_from_module(callbacks)
 registry.MODELS.add_from_module(models)

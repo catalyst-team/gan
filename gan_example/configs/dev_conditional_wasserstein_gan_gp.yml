@@ -30,6 +30,9 @@ model_params:
   critic:
     model: SimpleCDiscriminator
     num_classes: *n_classes
+  feature_extractor:
+    model: resnet18
+    pretrained: False
 
 
 args:
@@ -161,9 +164,25 @@ stages:
 
     memorizer:
       callback: MemoryAccumulatorCallback
-      input_key: *real_data
-      output_key: *fake_data
+      input_key:
+        *real_data: &memory_real_data "real_data"
+      output_key:
+        *fake_data: &memory_fake_data "fake_data"
       memory_size: 200
+
+    feature_extractor_real:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_real_data
+      model_key: "feature_extractor"
+      layer_key:
+        layer2: &memory_real_features "real_features"
+
+    feature_extractor_fake:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_fake_data
+      model_key: "feature_extractor"
+      layer_key:
+        layer2: &memory_fake_features "fake_features"
 
 #    inception_score_cb:
 #      callback: MemoryMetricCallback
@@ -183,14 +202,18 @@ stages:
 
     frechet_inception_distance_cb:
       callback: MemoryMetricCallback
-      input_key:
-#        samples_a: *fake_data
-        *real_data: samples_b
-#        samples_b: *real_data
-      output_key:
-#        samples_a: *fake_data
-        *fake_data: samples_a
-#        samples_b: *real_data
+      memory_key:
+        *memory_fake_data: samples_a
+        *memory_real_data: samples_b
+      prefix: "metrics/FID_px"
+      metric_fn_params:
+        name: "FrechetInceptionDistance"
+
+    frechet_inception_distance2_cb:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_features: samples_a
+        *memory_real_features: samples_b
       prefix: "metrics/FID"
       metric_fn_params:
         name: "FrechetInceptionDistance"

@@ -116,27 +116,33 @@ class MetricCallback(_MetricCallback):
 class MemoryMetricCallback(MetricCallback):
 
     def __init__(self, prefix: str, metric_fn_params: Dict[str, str],
-                 input_key: str = "targets", output_key: str = "logits",
+                 memory_key: Union[str, List[str], Dict[str, str]],
                  multiplier: float = 1.0, **metric_kwargs):
         metric_fn = METRICS.get(**metric_fn_params)()  # TODO: why () needed? how to avoid?
 
+        self.memory_key = memory_key
+        self._get_memory = utils.get_dictkey_auto_fn(self.memory_key)
+        if isinstance(self.memory_key, str):
+            self._compute_metric = self._compute_metric_value
+        elif isinstance(self.memory_key, (list, tuple, dict)):
+            self._compute_metric = self._compute_metric_key_value
+        else:
+            raise NotImplementedError()
+
         super().__init__(prefix=prefix, metric_fn=metric_fn,
-                         input_key=input_key, output_key=output_key,
                          multiplier=multiplier,
                          **metric_kwargs)
 
     def _compute_metric_value(self, state: _State):
-        output = self._get_output(state.memory.output, self.output_key)
-        input = self._get_input(state.memory.input, self.input_key)
+        output = self._get_memory(state.memory, self.memory_key)
 
-        metric = self.metric_fn(output, input, **self.metrics_kwargs)
+        metric = self.metric_fn(output, **self.metrics_kwargs)
         return metric
 
     def _compute_metric_key_value(self, state: _State):
-        output = self._get_output(state.memory.output, self.output_key)
-        input = self._get_input(state.memory.input, self.input_key)
+        output = self._get_memory(state.memory, self.memory_key)
 
-        metric = self.metric_fn(**output, **input, **self.metrics_kwargs)
+        metric = self.metric_fn(**output, **self.metrics_kwargs)
         return metric
 
     def on_batch_end(self, state: _State):
@@ -149,42 +155,40 @@ class MemoryMetricCallback(MetricCallback):
 
 @registry.Callback
 class MemoryAccumulatorCallback(Callback):
-    class Memory:  # TODO: move somewhere
-        def __init__(self):
-            self.input = defaultdict(list)
-            self.output = defaultdict(list)
 
-    def __init__(self, input_key=None, output_key=None, memory_size=2000):
+    def __init__(self, input_key: Dict[str, str], output_key: Dict[str, str],
+                 memory_size=2000):
         super().__init__(order=CallbackOrder.Metric - 1)
-        if not isinstance(input_key, str):
+        if not isinstance(input_key, dict):
             raise NotImplementedError()
-        if not isinstance(output_key, str):
+        if not isinstance(output_key, dict):
             raise NotImplementedError()
         self.input_key = input_key
         self.output_key = output_key
         self.memory_size = memory_size
 
     def on_loader_start(self, state: _State):
-        state.memory = MemoryAccumulatorCallback.Memory()  # empty memory
+        state.memory = defaultdict(list)  # empty memory
 
     def on_loader_end(self, state: _State):
-        for memory in (state.memory.input, state.memory.output):
-            for key, values_list in memory.items():
-                assert len(values_list) > 0
-                assert isinstance(values_list[0], torch.Tensor)
-                memory[key] = torch.stack(values_list, dim=0)
+        for key, values_list in state.memory.items():
+            assert len(values_list) > 0
+            assert isinstance(values_list[0], torch.Tensor)
+            state.memory[key] = torch.stack(values_list, dim=0)
 
     def on_batch_end(self, state: _State):
-        self.add_to_memory(
-            memory=state.memory.input[self.input_key],
-            items=state.input[self.input_key],
-            max_memory_size=self.memory_size
-        )
-        self.add_to_memory(
-            memory=state.memory.output[self.output_key],
-            items=state.output[self.output_key],
-            max_memory_size=self.memory_size
-        )
+        for input_key, memory_key in self.input_key.items():
+            self.add_to_memory(
+                memory=state.memory[memory_key],
+                items=state.input[input_key],
+                max_memory_size=self.memory_size
+            )
+        for output_key, memory_key in self.output_key.items():
+            self.add_to_memory(
+                memory=state.memory[memory_key],
+                items=state.output[output_key],
+                max_memory_size=self.memory_size
+            )
 
     @staticmethod
     def add_to_memory(memory, items, max_memory_size=2000):
@@ -198,3 +202,70 @@ class MemoryAccumulatorCallback(Callback):
             if len(memory) + len(items) > max_memory_size:
                 items = items[:(max_memory_size - len(memory))]
             memory.extend(items)
+
+
+@registry.Callback
+class MemoryFeatureExtractorCallback(Callback):
+
+    def __init__(
+        self,
+        memory_key: str,
+        model_key: str,
+        layer_key: Dict[str, str] = None,
+        resize: int = None,
+    ):
+        super().__init__(order=CallbackOrder.Internal)  # todo
+        self.memory_key = memory_key
+
+        self.model_key = model_key
+
+        assert isinstance(layer_key, dict)
+        self.layer_key = layer_key
+
+        self.resize = resize  # todo
+
+        self._extracted_features = {}
+
+    def on_loader_end(self, state: _State):
+        # st.memory[out_key[s]] = model(st.memory[memory_key])
+        # 1. register hooks
+        model = state.model[self.model_key]
+        model.eval()  # todo: what is the best way here? with torch.no_grad also?
+        hook_handles = self._wrap_model(model)
+        # 2. apply model to extract features
+        for x in state.memory[self.memory_key]:
+            # TODO: remove this hack (debug purposes only on mnist)
+            if x.size(0) == 1:
+                x = torch.cat([x] * 3)  # btw it's slow
+
+            model(x[None])  # now data is in self._extracted_features
+            for feature_name, batch_value in self._extracted_features.items():
+                assert batch_value.size(0) == 1, "single image is assumed"
+                state.memory[feature_name].append(
+                    batch_value[0]
+                )
+            # sanity check; todo: remove
+            self._extracted_features = {}
+        # 3. remove handles
+        for handle in hook_handles:
+            handle.remove()
+
+    @staticmethod
+    def _get_module(model, path):
+        curr = model
+        for attrib_name in path.split('.'):
+            # prev = curr
+            curr = getattr(curr, attrib_name)
+        return curr
+
+    def _wrap_model(self, model):
+        handles = []
+        for module_key, output_key in self.layer_key.items():
+            module = self._get_module(model, module_key)
+
+            def fwd_hook(module, input, output, output_key=output_key):
+                self._extracted_features[output_key] = output
+
+            handle = module.register_forward_hook(fwd_hook)
+            handles.append(handle)
+        return handles
