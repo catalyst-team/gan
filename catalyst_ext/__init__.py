@@ -1,3 +1,3 @@
-from .callbacks import SampleBasedMetricCallback
+from .callbacks import MemoryMetricCallback, MemoryAccumulatorCallback
 
-__all__ = ["SampleBasedMetricCallback"]
+__all__ = ["MemoryMetricCallback", "MemoryAccumulatorCallback"]

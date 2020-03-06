@@ -67,6 +67,8 @@ stages:
     main_metric: &reduce_metric loss_g
     minimize_metric: True
     batch_consistant_metrics: False
+    # todo: add somewhere
+    memory:  # None
 
   criterion_params:
     _key_value: True
@@ -157,43 +159,79 @@ stages:
     saver:
       callback: CheckpointCallback
 
-    evaluator:
-      callback: SampleBasedMetricCallback
-#      prefix: "InceptionScorePx"  # todo
-#      metric_fn: "abracadabra"  # todo
+    memorizer:
+      callback: MemoryAccumulatorCallback
+      input_key: *real_data
+      output_key: *fake_data
+      memory_size: 200
 
-      metrics:
-#        inception_score:
-#          name: "InceptionScore"
-#          prefix: "metrics/inception_score"
+#    inception_score_cb:
+#      callback: MemoryMetricCallback
+#      input_key: # as usual TODO
+#      output_key: # as usual TODO
+#      prefix: "metrics/IS"
+#      metric_fn_params:
+#        name: "InceptionScore"
+#
+#    mode_score_cb:
+#      callback: MemoryMetricCallback
+#      input_key: # as usual TODO
+#      output_key: # as usual TODO
+#      prefix: "metrics/MS"
+#      metric_fn_params:
+#        name: "InceptionScore"
+
+    frechet_inception_distance_cb:
+      callback: MemoryMetricCallback
+      input_key:
+#        samples_a: *fake_data
+        *real_data: samples_b
+#        samples_b: *real_data
+      output_key:
+#        samples_a: *fake_data
+        *fake_data: samples_a
+#        samples_b: *real_data
+      prefix: "metrics/FID"
+      metric_fn_params:
+        name: "FrechetInceptionDistance"
+
+#    evaluator:
+#      callback: SampleBasedMetricCallback
+##      prefix: "InceptionScorePx"  # todo
+##      metric_fn: "abracadabra"  # todo
+#
+#      metrics:
+##        inception_score:
+##          name: "InceptionScore"
+##          prefix: "metrics/inception_score"
+##          feature_extractor_model_key:  # None
+##          metric_kwargs:
+##            # out_key -> in_key; in_state_key
+##            samples:
+##              in_key: *fake_data
+##              in_state_key: output
+##        mode_score:
+##          name: "ModeScore"
+##          prefix: "metrics/mode_score"
+##          feature_extractor_model_key:  # None
+##          metric_kwargs:
+##            samples:
+##              in_key: *fake_data
+##              in_state_key: output
+##            samples_real:
+##              in_key: *real_data
+##              in_state_key: input
+#        frechet_inception_distance:
+#          name: "FrechetInceptionDistance"
+#          prefix: "metrics/frechet_inception_distance"
 #          feature_extractor_model_key:  # None
 #          metric_kwargs:
-#            # out_key -> in_key; in_state_key
-#            samples:
+#            samples_a:
 #              in_key: *fake_data
 #              in_state_key: output
-#        mode_score:
-#          name: "ModeScore"
-#          prefix: "metrics/mode_score"
-#          feature_extractor_model_key:  # None
-#          metric_kwargs:
-#            samples:
-#              in_key: *fake_data
-#              in_state_key: output
-#            samples_real:
+#            samples_b:
 #              in_key: *real_data
 #              in_state_key: input
-        frechet_inception_distance:
-          name: "FrechetInceptionDistance"
-          prefix: "metrics/frechet_inception_distance"
-          feature_extractor_model_key:  # None
-          metric_kwargs:
-            samples_a:
-              in_key: *fake_data
-              in_state_key: output
-            samples_b:
-              in_key: *real_data
-              in_state_key: input
 
 #      metrics:
 #        _key_value: True
