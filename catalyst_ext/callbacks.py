@@ -149,7 +149,10 @@ class MemoryMetricCallback(MetricCallback):
         pass  # do nothing!!!
 
     def on_loader_end(self, state: _State):
-        metric = self._compute_metric(state) * self.multiplier
+        with torch.no_grad():
+            metric = self._compute_metric(state) * self.multiplier
+            if isinstance(metric, torch.Tensor):
+                metric = metric.item()
         state.metric_manager.epoch_values[state.loader_name][self.prefix] = metric
 
 
@@ -250,22 +253,53 @@ class MemoryFeatureExtractorCallback(Callback):
         for handle in hook_handles:
             handle.remove()
 
+    def _wrap_model(self, model):
+        handles = []
+        for module_key, output_params in self.layer_key.items():
+            module = self._get_module(model, module_key)
+            output_key, activation, activation_params = \
+                self._parse_layer_output_params(output_params)
+
+            def fwd_hook(module, input, output,
+                         output_key=output_key,
+                         activation=activation,
+                         activation_params=activation_params):
+                self._extracted_features[output_key] = \
+                    activation(output, **activation_params)
+
+            handle = module.register_forward_hook(fwd_hook)
+            handles.append(handle)
+        return handles
+
     @staticmethod
     def _get_module(model, path):
+        if path == '':
+            return model
+
         curr = model
         for attrib_name in path.split('.'):
             # prev = curr
             curr = getattr(curr, attrib_name)
         return curr
 
-    def _wrap_model(self, model):
-        handles = []
-        for module_key, output_key in self.layer_key.items():
-            module = self._get_module(model, module_key)
+    @staticmethod
+    def _parse_layer_output_params(params):
+        # return output_key, activation, activation_params
+        if isinstance(params, str):
+            output_key = params
+            activation = lambda x: x
+            activation_params = {}
+        elif isinstance(params, dict):
+            assert len(params) <= 2
+            output_key = params.get("memory_out_key", None)
+            assert output_key is not None
 
-            def fwd_hook(module, input, output, output_key=output_key):
-                self._extracted_features[output_key] = output
+            activation_params = params.get("activation", None).copy()
 
-            handle = module.register_forward_hook(fwd_hook)
-            handles.append(handle)
-        return handles
+            activation = activation_params.pop("name")
+            if not hasattr(torch, activation):
+                raise ValueError(f"unknown activation '{activation}'")
+            activation = getattr(torch, activation)
+        else:
+            raise NotImplementedError()
+        return output_key, activation, activation_params
