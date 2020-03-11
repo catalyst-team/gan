@@ -38,6 +38,8 @@ The main advantage is to customize your experiments in the yaml config instead o
 
 ```bash
 pip install -r requirements.txt
+# TODO: change after catalyst release > 20.03
+pip install git+git://github.com/catalyst-team/catalyst.git@1f22feb7dae28cbaa157e900f3444680a6fe258f
 ```
 
 # Run examples

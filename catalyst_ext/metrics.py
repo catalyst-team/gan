@@ -47,6 +47,8 @@ def frechet_inception_distance(samples_a, samples_b):
         samples_a = samples_a.detach().cpu().numpy()
     if isinstance(samples_b, torch.Tensor):
         samples_b = samples_b.detach().cpu().numpy()
+    assert isinstance(samples_a, np.ndarray)
+    assert isinstance(samples_b, np.ndarray)
 
     if samples_a.ndim > 2:
         samples_a = samples_a.reshape((samples_a.shape[0], -1))

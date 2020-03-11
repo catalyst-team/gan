@@ -1,117 +1,17 @@
 import logging
-from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Callable, Dict, List, Union
+from typing import Dict, List, Union
 
+import numpy as np
 import torch
 import torch.nn.functional as F
-import numpy as np
 from catalyst import utils
-from catalyst.core import _State, Callback, CallbackOrder
+from catalyst.core import _State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
 
 from metrics import METRICS
 
 logger = logging.getLogger(__name__)
-
-
-# TODO: remove after upd to newer catalyst
-class _MetricCallback(ABC, Callback):
-    def __init__(
-            self,
-            prefix: str,
-            input_key: Union[str, List[str], Dict[str, str]] = "targets",
-            output_key: Union[str, List[str], Dict[str, str]] = "logits",
-            multiplier: float = 1.0,
-            **metrics_kwargs,
-    ):
-        super().__init__(order=CallbackOrder.Metric)
-        self.prefix = prefix
-        self.input_key = input_key
-        self.output_key = output_key
-        self.multiplier = multiplier
-        self.metrics_kwargs = metrics_kwargs
-
-        self._get_input = utils.get_dictkey_auto_fn(self.input_key)
-        self._get_output = utils.get_dictkey_auto_fn(self.output_key)
-        kv_types = (dict, tuple, list, type(None))
-
-        is_value_input = \
-            isinstance(self.input_key, str) and self.input_key != "__all__"
-        is_value_output = \
-            isinstance(self.output_key, str) and self.output_key != "__all__"
-        is_kv_input = \
-            isinstance(self.input_key, kv_types) or self.input_key == "__all__"
-        is_kv_output = (
-                isinstance(self.output_key, kv_types)
-                or self.output_key == "__all__"
-        )
-
-        # @TODO: fix to only KV usage
-        if hasattr(self, "_compute_metric"):
-            pass  # overridden in descendants
-        elif is_value_input and is_value_output:
-            self._compute_metric = self._compute_metric_value
-        elif is_kv_input and is_kv_output:
-            self._compute_metric = self._compute_metric_key_value
-        else:
-            raise NotImplementedError()
-
-    @property
-    @abstractmethod
-    def metric_fn(self):
-        pass
-
-    def _compute_metric_value(self, state: _State):
-        output = self._get_output(state.output, self.output_key)
-        input = self._get_input(state.input, self.input_key)
-
-        metric = self.metric_fn(output, input, **self.metrics_kwargs)
-        return metric
-
-    def _compute_metric_key_value(self, state: _State):
-        output = self._get_output(state.output, self.output_key)
-        input = self._get_input(state.input, self.input_key)
-
-        metric = self.metric_fn(**output, **input, **self.metrics_kwargs)
-        return metric
-
-    def on_batch_end(self, state: _State):
-        """
-        Computes the metric and add it to batch metrics
-        """
-
-        metric = self._compute_metric(state) * self.multiplier
-        state.metric_manager.add_batch_value(name=[self.prefix], value=metric)
-
-
-# TODO: remove after upd to newer catalyst
-class MetricCallback(_MetricCallback):
-    """
-    A callback that returns single metric on `state.on_batch_end`
-    """
-
-    def __init__(
-            self,
-            prefix: str,
-            metric_fn: Callable,
-            input_key: str = "targets",
-            output_key: str = "logits",
-            multiplier: float = 1.0,
-            **metric_kwargs,
-    ):
-        super().__init__(
-            prefix=prefix,
-            input_key=input_key,
-            output_key=output_key,
-            multiplier=multiplier,
-            **metric_kwargs,
-        )
-        self.metric = metric_fn
-
-    @property
-    def metric_fn(self):
-        return self.metric
 
 
 @registry.Callback
@@ -162,12 +62,11 @@ class MemoryMetricCallback(MetricCallback):
             metric = self._compute_metric(state) * self.multiplier
             if isinstance(metric, torch.Tensor):
                 metric = metric.item()
-        state.metric_manager.epoch_values[state.loader_name][self.prefix] = metric
+        state.loader_metrics[self.prefix] = metric
 
 
 @registry.Callback
 class MemoryAccumulatorCallback(Callback):
-
     SAVE_FIRST_MODE = "first"
     SAVE_LAST_MODE = "last"
     SAVE_RANDOM_MODE = "random"
@@ -175,7 +74,7 @@ class MemoryAccumulatorCallback(Callback):
     def __init__(self, input_key: Dict[str, str], output_key: Dict[str, str],
                  mode: str = SAVE_LAST_MODE,
                  memory_size: int = 2000):
-        super().__init__(order=CallbackOrder.Metric)  # todo
+        super().__init__(order=CallbackOrder.Metric - 1)
         if not isinstance(input_key, dict):
             raise NotImplementedError()
         if not isinstance(output_key, dict):
