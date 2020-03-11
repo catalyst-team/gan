@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Callable, Dict, List, Union
 
 import torch
+import torch.nn.functional as F
 import numpy as np
 from catalyst import utils
 from catalyst.core import _State, Callback, CallbackOrder
@@ -266,7 +267,11 @@ class MemoryFeatureExtractorCallback(Callback):
         memory_key: str,
         model_key: str,
         layer_key: Dict[str, str] = None,
-        resize: int = None,
+        batch_size: int = 64,
+        channels: int = 3,
+        target_size: int = None,
+        interpolation_mode: str = 'nearest',
+        align_corners: bool = None
     ):
         super().__init__(order=CallbackOrder.Internal)
         self.memory_key = memory_key
@@ -276,7 +281,16 @@ class MemoryFeatureExtractorCallback(Callback):
         assert isinstance(layer_key, dict)
         self.layer_key = layer_key
 
-        self.resize = resize  # todo
+        self.batch_size = batch_size
+        assert channels in (1, 3), "suspicious number of image channels"
+        self.channels = channels
+
+        self.need_resize = target_size is not None
+        self.resize_params = {
+            "size": target_size,
+            "mode": interpolation_mode,
+            "align_corners": align_corners
+        }
 
         self._extracted_features = {}
 
@@ -290,24 +304,53 @@ class MemoryFeatureExtractorCallback(Callback):
         model_training_old = model.training
         model.eval()
         with torch.no_grad():
-            # TODO: speed up with batch predictions
-            for x in state.memory[self.memory_key]:
-                # TODO: remove this hack (debug purposes only on mnist)
-                if x.size(0) == 1:
-                    x = torch.cat([x] * 3)  # btw it's slow
+            data = state.memory[self.memory_key]
+            for start_idx in range(0, len(data), self.batch_size):
+                batch = data[start_idx:start_idx + self.batch_size]
 
-                model(x[None])  # now data is in self._extracted_features
-                for feature_name, batch_value in self._extracted_features.items():
-                    assert batch_value.size(0) == 1, "single image is assumed"
-                    state.memory[feature_name].append(
-                        batch_value[0]
-                    )
-                # sanity check; todo: remove
-                self._extracted_features = {}
+                self._process_batch(
+                    model=model,
+                    batch=batch,
+                    memory=state.memory
+                )
         model.train(mode=model_training_old)
         # 3. remove handles
         for handle in hook_handles:
             handle.remove()
+
+    def _prepare_batch_input(self, batch):
+        if isinstance(batch, list):
+            batch = torch.stack(batch, dim=0)
+        elif isinstance(batch, torch.Tensor):
+            pass
+        else:
+            raise NotImplementedError()
+
+        channels = batch.size(1)
+        if channels != self.channels:
+            if channels == 1:
+                batch = torch.cat([batch] * self.channels, dim=1)
+            elif self.channels == 1:
+                batch = torch.mean(batch, dim=1, keepdim=True)
+            else:
+                raise NotImplementedError()
+
+        if self.need_resize:
+            batch = F.interpolate(batch, **self.resize_params)
+        return batch
+
+    def _process_batch(self, model, batch, memory):
+        batch = self._prepare_batch_input(batch=batch)
+
+        model(batch)  # now data is in self._extracted_features
+
+        for feature_name, features in self._extracted_features.items():
+            assert features.size(0) == batch.size(0)
+            memory[feature_name].extend(
+                features
+            )
+        # sanity check & clean up
+        self._extracted_features = {}
 
     def _wrap_model(self, model):
         handles = []
