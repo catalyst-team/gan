@@ -66,25 +66,13 @@ def frechet_inception_distance(samples_a, samples_b):
         cov_a + cov_b - 2 * scipy.linalg.sqrtm(cov_a @ cov_b).real
     )
 
-    # m = X.mean(0)
-    # m_w = Y.mean(0)
-    # X_np = X.numpy()
-    # Y_np = Y.numpy()
-    #
-    # C = np.cov(X_np.transpose())
-    # C_w = np.cov(Y_np.transpose())
-    # C_C_w_sqrt = linalg.sqrtm(C.dot(C_w), True).real
-    #
-    # score = m.dot(m) + m_w.dot(m_w) - 2 * m_w.dot(m) + \
-    #     np.trace(C + C_w - 2 * C_C_w_sqrt)
     return w2_dist
 
 
+@Metric
 class MetricModule:
-    def __init__(self, metric_fn, mappings=None):
+    def __init__(self, metric_fn):
         self.metric_fn = metric_fn
-        self.input_mappings = mappings or {} # todo filter
-        self.state_output_mappings = mappings or {} # todo filter
 
     def __call__(self, *args, **kwargs):
         return self.metric_fn(*args, **kwargs)

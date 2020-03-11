@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Callable, Dict, List, Union
 
 import torch
+import numpy as np
 from catalyst import utils
 from catalyst.core import _State, Callback, CallbackOrder
 from catalyst.dl import registry
@@ -115,10 +116,17 @@ class MetricCallback(_MetricCallback):
 @registry.Callback
 class MemoryMetricCallback(MetricCallback):
 
-    def __init__(self, prefix: str, metric_fn_params: Dict[str, str],
+    def __init__(self, prefix: str,
+                 metric: Union[str, Dict[str, str]],
                  memory_key: Union[str, List[str], Dict[str, str]],
                  multiplier: float = 1.0, **metric_kwargs):
-        metric_fn = METRICS.get(**metric_fn_params)()  # TODO: why () needed? how to avoid?
+        if isinstance(metric, str):
+            metric = {"metric": metric}
+        elif isinstance(metric, dict):
+            pass
+        else:
+            raise NotImplementedError()
+        metric_fn = METRICS.get_from_params(**metric)
 
         self.memory_key = memory_key
         self._get_memory = utils.get_dictkey_auto_fn(self.memory_key)
@@ -146,7 +154,7 @@ class MemoryMetricCallback(MetricCallback):
         return metric
 
     def on_batch_end(self, state: _State):
-        pass  # do nothing!!!
+        pass  # do nothing (override parent method which does something)
 
     def on_loader_end(self, state: _State):
         with torch.no_grad():
@@ -159,9 +167,14 @@ class MemoryMetricCallback(MetricCallback):
 @registry.Callback
 class MemoryAccumulatorCallback(Callback):
 
+    SAVE_FIRST_MODE = "first"
+    SAVE_LAST_MODE = "last"
+    SAVE_RANDOM_MODE = "random"
+
     def __init__(self, input_key: Dict[str, str], output_key: Dict[str, str],
-                 memory_size=2000):
-        super().__init__(order=CallbackOrder.Metric - 1)
+                 mode: str = SAVE_LAST_MODE,
+                 memory_size: int = 2000):
+        super().__init__(order=CallbackOrder.Metric)  # todo
         if not isinstance(input_key, dict):
             raise NotImplementedError()
         if not isinstance(output_key, dict):
@@ -170,8 +183,21 @@ class MemoryAccumulatorCallback(Callback):
         self.output_key = output_key
         self.memory_size = memory_size
 
+        if mode not in (
+                self.SAVE_FIRST_MODE,
+                self.SAVE_LAST_MODE,
+                self.SAVE_RANDOM_MODE):
+            raise ValueError(f"Unsupported mode '{mode}'")
+        self.mode = mode
+
+        self._start_idx = None
+
     def on_loader_start(self, state: _State):
         state.memory = defaultdict(list)  # empty memory
+
+        # self._start_idx[key] - index in state.memory[key]
+        # where to update memory next
+        self._start_idx = defaultdict(int)  # default value 0
 
     def on_loader_end(self, state: _State):
         for key, values_list in state.memory.items():
@@ -184,27 +210,52 @@ class MemoryAccumulatorCallback(Callback):
             self.add_to_memory(
                 memory=state.memory[memory_key],
                 items=state.input[input_key],
+                memory_key=memory_key,
                 max_memory_size=self.memory_size
             )
         for output_key, memory_key in self.output_key.items():
             self.add_to_memory(
                 memory=state.memory[memory_key],
                 items=state.output[output_key],
+                memory_key=memory_key,
                 max_memory_size=self.memory_size
             )
 
-    @staticmethod
-    def add_to_memory(memory, items, max_memory_size=2000):
-        # TODO: save last/random N items (now first items are saved only)
-
+    def add_to_memory(self, memory, items, memory_key,
+                      max_memory_size=2000):
         if not isinstance(items, (list, tuple, torch.Tensor)):
             # must be iterable
             raise NotImplementedError()
 
         if len(memory) < max_memory_size:
-            if len(memory) + len(items) > max_memory_size:
-                items = items[:(max_memory_size - len(memory))]
-            memory.extend(items)
+            n_remaining_items = len(memory) + len(items) - max_memory_size
+            if n_remaining_items > 0:
+                memory.extend(items[:-n_remaining_items])
+                items = items[-n_remaining_items:]
+            else:
+                memory.extend(items)
+                return  # everything added
+
+        if self.mode == self.SAVE_FIRST_MODE:
+            pass
+        elif self.mode == self.SAVE_LAST_MODE:
+            self._start_idx[memory_key] = self._store_all(
+                memory, items, start_index=self._start_idx[memory_key]
+            )
+        elif self.mode == self.SAVE_RANDOM_MODE:
+            memory_indices = np.random.choice(len(memory), size=len(items))
+            for idx, item in zip(memory_indices, items):
+                memory[idx] = item
+        else:
+            raise ValueError(f"Unsupported mode '{self.mode}'")
+
+    @staticmethod
+    def _store_all(memory, items, start_index=0):
+        index = start_index
+        for item in items:
+            memory[index] = item
+            index = (index + 1) % len(memory)
+        return index
 
 
 @registry.Callback
@@ -217,7 +268,7 @@ class MemoryFeatureExtractorCallback(Callback):
         layer_key: Dict[str, str] = None,
         resize: int = None,
     ):
-        super().__init__(order=CallbackOrder.Internal)  # todo
+        super().__init__(order=CallbackOrder.Internal)
         self.memory_key = memory_key
 
         self.model_key = model_key
@@ -233,22 +284,27 @@ class MemoryFeatureExtractorCallback(Callback):
         # st.memory[out_key[s]] = model(st.memory[memory_key])
         # 1. register hooks
         model = state.model[self.model_key]
-        model.eval()  # todo: what is the best way here? with torch.no_grad also?
         hook_handles = self._wrap_model(model)
-        # 2. apply model to extract features
-        for x in state.memory[self.memory_key]:
-            # TODO: remove this hack (debug purposes only on mnist)
-            if x.size(0) == 1:
-                x = torch.cat([x] * 3)  # btw it's slow
 
-            model(x[None])  # now data is in self._extracted_features
-            for feature_name, batch_value in self._extracted_features.items():
-                assert batch_value.size(0) == 1, "single image is assumed"
-                state.memory[feature_name].append(
-                    batch_value[0]
-                )
-            # sanity check; todo: remove
-            self._extracted_features = {}
+        # 2. apply model to extract features
+        model_training_old = model.training
+        model.eval()
+        with torch.no_grad():
+            # TODO: speed up with batch predictions
+            for x in state.memory[self.memory_key]:
+                # TODO: remove this hack (debug purposes only on mnist)
+                if x.size(0) == 1:
+                    x = torch.cat([x] * 3)  # btw it's slow
+
+                model(x[None])  # now data is in self._extracted_features
+                for feature_name, batch_value in self._extracted_features.items():
+                    assert batch_value.size(0) == 1, "single image is assumed"
+                    state.memory[feature_name].append(
+                        batch_value[0]
+                    )
+                # sanity check; todo: remove
+                self._extracted_features = {}
+        model.train(mode=model_training_old)
         # 3. remove handles
         for handle in hook_handles:
             handle.remove()
