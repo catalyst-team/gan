@@ -9,7 +9,10 @@ from catalyst import utils
 from catalyst.core import _State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
 
+import metrics
 from metrics import METRICS
+import batch_transforms
+from batch_transforms import BATCH_TRANSFORMS
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +69,31 @@ class MemoryMetricCallback(MetricCallback):
 
 
 @registry.Callback
+class MemoryMultiMetricCallback(MemoryMetricCallback):
+
+    def __init__(self, prefix: str, metric: Union[str, Dict[str, str]],
+                 list_args: List,
+                 memory_key: Union[str, List[str], Dict[str, str]],
+                 multiplier: float = 1.0, **metric_kwargs):
+        super().__init__(prefix, metric, memory_key, multiplier,
+                         **metric_kwargs)
+        self.list_args = list_args
+
+    def on_loader_end(self, state: _State):
+        with torch.no_grad():
+            metrics_ = self._compute_metric(state)
+            if isinstance(metrics_, torch.Tensor):
+                metrics_ = metrics_.detach().cpu().numpy()
+
+        for arg, metric in zip(self.list_args, metrics_):
+            if isinstance(arg, int):
+                key = f"{self.prefix}{arg:02}"
+            else:
+                key = f"{self.prefix}_{arg}"
+            state.loader_metrics[key] = metric * self.multiplier
+
+
+@registry.Callback
 class MemoryAccumulatorCallback(Callback):
     SAVE_FIRST_MODE = "first"
     SAVE_LAST_MODE = "last"
@@ -74,7 +102,7 @@ class MemoryAccumulatorCallback(Callback):
     def __init__(self, input_key: Dict[str, str], output_key: Dict[str, str],
                  mode: str = SAVE_LAST_MODE,
                  memory_size: int = 2000):
-        super().__init__(order=CallbackOrder.Metric - 1)
+        super().__init__(order=CallbackOrder.Internal)
         if not isinstance(input_key, dict):
             raise NotImplementedError()
         if not isinstance(output_key, dict):
@@ -102,8 +130,9 @@ class MemoryAccumulatorCallback(Callback):
     def on_loader_end(self, state: _State):
         for key, values_list in state.memory.items():
             assert len(values_list) > 0
-            assert isinstance(values_list[0], torch.Tensor)
-            state.memory[key] = torch.stack(values_list, dim=0)
+            if isinstance(values_list, (list, tuple)):
+                assert isinstance(values_list[0], torch.Tensor)
+                state.memory[key] = torch.stack(values_list, dim=0)
 
     def on_batch_end(self, state: _State):
         for input_key, memory_key in self.input_key.items():
@@ -217,6 +246,13 @@ class MemoryFeatureExtractorCallback(Callback):
         for handle in hook_handles:
             handle.remove()
 
+        # convert memory lists to tensors
+        for key, values_list in state.memory.items():
+            assert len(values_list) > 0
+            if isinstance(values_list, (list, tuple)):
+                assert isinstance(values_list[0], torch.Tensor)
+                state.memory[key] = torch.stack(values_list, dim=0)
+
     def _prepare_batch_input(self, batch):
         if isinstance(batch, list):
             batch = torch.stack(batch, dim=0)
@@ -301,3 +337,41 @@ class MemoryFeatureExtractorCallback(Callback):
         else:
             raise NotImplementedError()
         return output_key, activation, activation_params
+
+
+@registry.Callback
+class MemoryTransformCallback(Callback):  # todo: rename or generalize
+
+    def __init__(self,
+                 batch_transform: Dict[str, str],
+                 transform_in_key: Union[str, List[str], Dict[str, str]],
+                 transform_out_key: str = None,
+                 list_args: List[str] = None):
+        super().__init__(order=CallbackOrder.Internal)
+        if isinstance(batch_transform, str):
+            batch_transform = {"batch_transform": batch_transform}
+        elif isinstance(batch_transform, dict):
+            pass
+        else:
+            raise NotImplementedError()
+        self.transform_fn = BATCH_TRANSFORMS.get_from_params(**batch_transform)
+
+        self._get_input_key = utils.get_dictkey_auto_fn(transform_in_key)
+        self.transform_in_key = transform_in_key
+        self.transform_out_key = transform_out_key
+        self.list_args = list_args or []
+
+    def on_loader_end(self, state: _State):
+        input = self._get_input_key(state.memory, self.transform_in_key)
+        output = self.transform_fn(**input)
+        if isinstance(output, torch.Tensor):
+            state.memory[self.transform_out_key] = output
+        elif isinstance(output, (list, tuple)):
+            for key, value in zip(self.list_args, output):
+                assert isinstance(value, torch.Tensor)
+
+                if self.transform_out_key is not None:
+                    key = f"{self.transform_out_key}_{key}"
+                state.memory[key] = value
+        else:
+            raise NotImplementedError()

@@ -1,3 +1,7 @@
+"""
+Implementations of metrics are based on
+https://github.com/xuqiantong/GAN-Metrics/blob/master/metric.py
+"""
 import torch
 import numpy as np
 import scipy.linalg
@@ -71,28 +75,80 @@ def frechet_inception_distance(samples_a, samples_b):
     return w2_dist
 
 
+def knn_scores(D_XX, D_XY, D_YY, k=1):
+    """
+
+    :param D_XX: (nx, nx)-shaped matrix with distances between real samples
+    :param D_XY: (nx, ny)-shaped matrix with distances between real and fake samples
+    :param D_YY: (ny, ny)-shaped matrix with distances between fake samples
+    :param k:
+    :return: acc, acc_real, acc_fake
+    """
+    nx = D_XX.size(0)
+    ny = D_YY.size(0)
+    assert D_XX.size() == (nx, nx)
+    assert D_XY.size() == (nx, ny)
+    assert D_YY.size() == (ny, ny)
+
+    device = D_XX.device
+
+    label = torch.cat((
+        torch.ones((nx,)),
+        torch.zeros((ny,))
+    )).to(device)
+
+    distances = torch.cat((
+        torch.cat((D_XX, D_XY), dim=1),
+        torch.cat((D_XY.T, D_YY), dim=1),
+    ), dim=0)
+    indices = torch.arange(nx + ny)
+    distances[indices, indices] = float('inf')
+    dist_topk, ind_topk = distances.topk(k=k, dim=0, largest=False)
+    # (unweighted knn only)
+    count = torch.zeros((nx + ny,), device=device)
+    for i in range(k):
+        count += label.index_select(dim=0, index=ind_topk[i])
+    pred = torch.ge(count, k / 2).float()
+
+    tp = (pred * label).sum()
+    fp = (pred * (1 - label)).sum()
+    fn = ((1 - pred) * label).sum()
+    tn = ((1 - pred) * (1 - label)).sum()
+    acc_real = tp / (tp + fn)
+    acc_fake = tn / (tn + fp)
+    acc = torch.eq(label, pred).float().mean()
+    return acc.item(), acc_real.item(), acc_fake.item()
+
+
 @Metric
 class MetricModule:
-    def __init__(self, metric_fn):
+    def __init__(self, metric_fn, **metric_kwargs):
         self.metric_fn = metric_fn
+        self.metric_kwargs = metric_kwargs
 
     def __call__(self, *args, **kwargs):
-        return self.metric_fn(*args, **kwargs)
+        return self.metric_fn(*args, **kwargs, **self.metric_kwargs)
 
 
 @Metric
 class FrechetInceptionDistance(MetricModule):
-    def __init__(self):
-        super().__init__(metric_fn=frechet_inception_distance)
+    def __init__(self, **metric_kwargs):
+        super().__init__(metric_fn=frechet_inception_distance, **metric_kwargs)
 
 
 @Metric
 class InceptionScore(MetricModule):
-    def __init__(self):
-        super().__init__(metric_fn=inception_score)
+    def __init__(self, **metric_kwargs):
+        super().__init__(metric_fn=inception_score, **metric_kwargs)
 
 
 @Metric
 class ModeScore(MetricModule):
-    def __init__(self):
-        super().__init__(metric_fn=mode_score)
+    def __init__(self, **metric_kwargs):
+        super().__init__(metric_fn=mode_score, **metric_kwargs)
+
+
+@Metric
+class KnnScores(MetricModule):
+    def __init__(self, **metric_kwargs):
+        super().__init__(metric_fn=knn_scores, **metric_kwargs)

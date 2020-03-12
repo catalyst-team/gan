@@ -194,7 +194,28 @@ stages:
             dim: -1
           memory_out_key: &memory_fake_probabilities "fake_probabilities"
 
+    distance_real_real_px:
+      callback: MemoryTransformCallback
+      batch_transform: RealFakeDistanceBatchTransform
+      transform_in_key:
+        *memory_real_data: X_real
+        *memory_fake_data: X_fake
+      transform_out_key: "D_px"
+      list_args: ["rr", "rf", "ff"]
+
     # scores on raw pixel data
+
+    knn_scores:
+      callback: MemoryMultiMetricCallback
+      prefix: "metrics/knn"
+      list_args: ["acc", "acc_real", "acc_fake"]
+      metric: KnnScores
+      memory_key:
+        D_px_rr: D_XX
+        D_px_rf: D_XY
+        D_px_ff: D_YY
+      # metric_kwargs:
+      k: 1
 
     frechet_inception_distance_px:
       callback: MemoryMetricCallback
@@ -228,59 +249,6 @@ stages:
         *memory_real_features: samples_b
       prefix: "metrics/FID"
       metric: "FrechetInceptionDistance"
-
-#    evaluator:
-#      callback: SampleBasedMetricCallback
-##      prefix: "InceptionScorePx"  # todo
-##      metric_fn: "abracadabra"  # todo
-#
-#      metrics:
-##        inception_score:
-##          name: "InceptionScore"
-##          prefix: "metrics/inception_score"
-##          feature_extractor_model_key:  # None
-##          metric_kwargs:
-##            # out_key -> in_key; in_state_key
-##            samples:
-##              in_key: *fake_data
-##              in_state_key: output
-##        mode_score:
-##          name: "ModeScore"
-##          prefix: "metrics/mode_score"
-##          feature_extractor_model_key:  # None
-##          metric_kwargs:
-##            samples:
-##              in_key: *fake_data
-##              in_state_key: output
-##            samples_real:
-##              in_key: *real_data
-##              in_state_key: input
-#        frechet_inception_distance:
-#          name: "FrechetInceptionDistance"
-#          prefix: "metrics/frechet_inception_distance"
-#          feature_extractor_model_key:  # None
-#          metric_kwargs:
-#            samples_a:
-#              in_key: *fake_data
-#              in_state_key: output
-#            samples_b:
-#              in_key: *real_data
-#              in_state_key: input
-
-#      metrics:
-#        _key_value: True
-#        inception_score:
-#          metric: "inception_score"
-#          prefix: "metrics/inception_score"
-#          feature_extractor_model_key: # None
-#        mode_score:
-#          metric: "mode_score"
-#          prefix: "metrics/mode_score"
-#          feature_extractor_model_key: # None
-#        frechet_inception_distance:
-#          metric: "frechet_inception_distance"
-#          prefix: "metrics/frechet_inception_distance"
-#          feature_extractor_model_key: # None
 
   stage1:
 
