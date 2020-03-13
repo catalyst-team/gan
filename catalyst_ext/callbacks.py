@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union, Callable
+from typing import Dict, List, Union, Iterable, Optional, Sized
 
 import numpy as np
 import torch
@@ -9,9 +9,7 @@ from catalyst import utils
 from catalyst.core import _State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
 
-import metrics
 from metrics import METRICS
-import batch_transforms
 from batch_transforms import BATCH_TRANSFORMS
 
 logger = logging.getLogger(__name__)
@@ -24,6 +22,7 @@ class MemoryMetricCallback(MetricCallback):
                  metric: Union[str, Dict[str, str]],
                  memory_key: Union[str, List[str], Dict[str, str]],
                  multiplier: float = 1.0, **metric_kwargs):
+        # TODO: move this block (get_metric) to separate place?
         if isinstance(metric, str):
             metric = {"metric": metric}
         elif isinstance(metric, dict):
@@ -77,7 +76,7 @@ class MemoryMultiMetricCallback(MemoryMetricCallback):
                  multiplier: float = 1.0, **metric_kwargs):
         super().__init__(prefix, metric, memory_key, multiplier,
                          **metric_kwargs)
-        self.list_args = list_args
+        self.list_args = list_args  # TODO: rename `list_args`
 
     def on_loader_end(self, state: _State):
         with torch.no_grad():
@@ -128,6 +127,7 @@ class MemoryAccumulatorCallback(Callback):
         self._start_idx = defaultdict(int)  # default value 0
 
     def on_loader_end(self, state: _State):
+        # TODO: move this aggregation to separate place/callback/function
         for key, values_list in state.memory.items():
             assert len(values_list) > 0
             if isinstance(values_list, (list, tuple)):
@@ -150,10 +150,21 @@ class MemoryAccumulatorCallback(Callback):
                 max_memory_size=self.memory_size
             )
 
-    def add_to_memory(self, memory, items, memory_key,
-                      max_memory_size=2000):
+    def add_to_memory(self,
+                      memory: List[torch.Tensor],
+                      items: Iterable[torch.Tensor],
+                      memory_key: Optional[str] = None,
+                      max_memory_size: int = 2000):
+        """
+        :param memory: list to extend
+        :param items: sequence of elements to add to `memory`
+        :param memory_key: unique placeholder for `memory` list,
+            used only if mode == SAVE_LAST_MODE to update the most outdated
+            items (FIFO) if current memory size > max_memory_size
+        :param max_memory_size:
+        :return:
+        """
         if not isinstance(items, (list, tuple, torch.Tensor)):
-            # must be iterable
             raise NotImplementedError()
 
         if len(memory) < max_memory_size:
@@ -163,7 +174,9 @@ class MemoryAccumulatorCallback(Callback):
                 items = items[-n_remaining_items:]
             else:
                 memory.extend(items)
-                return  # everything added
+                return  # everything added, memory not full
+
+        # memory is full -> update some items if needed
 
         if self.mode == self.SAVE_FIRST_MODE:
             pass
@@ -229,6 +242,7 @@ class MemoryFeatureExtractorCallback(Callback):
         hook_handles = self._wrap_model(model)
 
         # 2. apply model to extract features
+        # TODO: move model.eval() -> deeval() wrapping to external score
         model_training_old = model.training
         model.eval()
         with torch.no_grad():
@@ -247,6 +261,7 @@ class MemoryFeatureExtractorCallback(Callback):
             handle.remove()
 
         # convert memory lists to tensors
+        # TODO: remove duplicated code below
         for key, values_list in state.memory.items():
             assert len(values_list) > 0
             if isinstance(values_list, (list, tuple)):
@@ -254,6 +269,7 @@ class MemoryFeatureExtractorCallback(Callback):
                 state.memory[key] = torch.stack(values_list, dim=0)
 
     def _prepare_batch_input(self, batch):
+        # TODO: move to external func?
         if isinstance(batch, list):
             batch = torch.stack(batch, dim=0)
         elif isinstance(batch, torch.Tensor):
@@ -288,6 +304,7 @@ class MemoryFeatureExtractorCallback(Callback):
         self._extracted_features = {}
 
     def _wrap_model(self, model):
+        # TODO: move to external func
         handles = []
         for module_key, output_params in self.layer_key.items():
             module = self._get_module(model, module_key)
@@ -307,6 +324,7 @@ class MemoryFeatureExtractorCallback(Callback):
 
     @staticmethod
     def _get_module(model, path):
+        # TODO: move to external function
         if path == '':
             return model
 
@@ -318,6 +336,7 @@ class MemoryFeatureExtractorCallback(Callback):
 
     @staticmethod
     def _parse_layer_output_params(params):
+        # TODO (low priority) - think how to rewrite & change api to make it more elegant
         # return output_key, activation, activation_params
         if isinstance(params, str):
             output_key = params
@@ -347,7 +366,9 @@ class MemoryTransformCallback(Callback):  # todo: rename or generalize
                  transform_in_key: Union[str, List[str], Dict[str, str]],
                  transform_out_key: str = None,
                  list_args: List[str] = None):
+        # TODO: rename list_args
         super().__init__(order=CallbackOrder.Internal)
+        # TODO: move block below to separate method?
         if isinstance(batch_transform, str):
             batch_transform = {"batch_transform": batch_transform}
         elif isinstance(batch_transform, dict):
@@ -387,12 +408,15 @@ class PerceptualPathLengthCallback(MetricCallback):
                  interpolation: str = "spherical",
                  num_samples: int = 100_000,
                  eps: float = 1e-4,
-                 multiplier: float = 1.0, **metric_kwargs):
+                 batch_size: int = 1,  # todo change default to larger value
+                 multiplier: float = 1.0,
+                 **metric_kwargs):
         super().__init__(prefix=prefix,
                          metric_fn=self._metric_fn,
                          multiplier=multiplier,
                          num_samples=num_samples,
                          eps=eps,
+                         batch_size=batch_size,
                          **metric_kwargs)
         self.generator_model_key = generator_model_key
         self.embedder_model_key = embedder_model_key
@@ -426,7 +450,7 @@ class PerceptualPathLengthCallback(MetricCallback):
 
     def _metric_fn(self, generator, embedder,
                    batch_size=1,
-                   num_samples=100000, eps=1e-4):
+                   num_samples=100_000, eps=1e-4):
         # todo weighted sum perceptual
         dist = lambda x, y: ((x-y)**2).sum(1)
 
@@ -437,7 +461,7 @@ class PerceptualPathLengthCallback(MetricCallback):
                                                              device=device)
 
         scores = []
-        for _ in range(num_samples // batch_size):
+        for _ in range(num_samples // batch_size):  # todo: do not ignore last incomplete batch
             z1 = get_z()
             z2 = get_z()
             t = get_t()
@@ -446,7 +470,7 @@ class PerceptualPathLengthCallback(MetricCallback):
             e2 = embedder(generator(self.interpolate(z1, z2, t + eps), *c_args))
             d = dist(e1, e2).mean().item() / eps ** 2
             scores.append(d)
-        return np.mean(scores)
+        return np.mean(scores)  # todo (see above todo): then fixed this line will be formally incorrect
 
     def _get_z(self, batch_size, device=None):
         return torch.normal(0, 1,
@@ -454,7 +478,7 @@ class PerceptualPathLengthCallback(MetricCallback):
                             device=device)
 
     def _get_generator_condition_inputs(self, batch_size, device=None):
-        n_classes = 10  # todo
+        n_classes = 10  # todo: add additional params to __init__
         c_flat = torch.randint(0, n_classes, size=(batch_size,))
         c_one_hot = torch.zeros((batch_size, n_classes))
         c_one_hot[torch.arange(batch_size), c_flat] = 1
@@ -463,6 +487,7 @@ class PerceptualPathLengthCallback(MetricCallback):
 
     @staticmethod
     def slerp(x1, x2, t):
+        # TODO: move to utils
         x1_norm = x1 / torch.norm(x1, dim=1, keepdim=True)
         x2_norm = x2 / torch.norm(x2, dim=1, keepdim=True)
         omega = torch.acos((x1_norm * x2_norm).sum(1))

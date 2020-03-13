@@ -1,17 +1,18 @@
 """
-copy-paste from https://github.com/aaron-xichen/pytorch-playground/blob/master/mnist/model.py
-(MIT License but anyway copy-paste is really bad)
-TODO: make fine model
+from https://github.com/aaron-xichen/pytorch-playground/blob/master/mnist/model.py
+(under MIT License)
+TODO: make/find fine conv model
 """
-import torch.nn as nn
 from collections import OrderedDict
-import torch.utils.model_zoo as model_zoo
 
+import torch.nn as nn
+import torch.utils.model_zoo as model_zoo
 from catalyst.dl import registry
 
 model_urls = {
     'mnist': 'http://ml.cs.tsinghua.edu.cn/~chenxi/pytorch-models/mnist-b07bb66b.pth'
 }
+
 
 class MLP(nn.Module):
     def __init__(self, input_dims, n_hiddens, n_class):
@@ -26,13 +27,14 @@ class MLP(nn.Module):
         else:
             n_hiddens = list(n_hiddens)
         for i, n_hidden in enumerate(n_hiddens):
-            layers['fc{}'.format(i+1)] = nn.Linear(current_dims, n_hidden)
-            layers['relu{}'.format(i+1)] = nn.ReLU()
-            layers['drop{}'.format(i+1)] = nn.Dropout(0.2)
+            layers['fc{}'.format(i + 1)] = nn.Linear(current_dims, n_hidden)
+            layers['relu{}'.format(i + 1)] = nn.ReLU()
+            layers['drop{}'.format(i + 1)] = nn.Dropout(0.2)
             current_dims = n_hidden
         layers['out'] = nn.Linear(current_dims, n_class)
 
-        self.model= nn.Sequential(layers)
+        self.model = nn.Sequential(layers)
+        # print(self.model)
 
     def forward(self, input):
         input = input.view(input.size(0), -1)

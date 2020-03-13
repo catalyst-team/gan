@@ -1,6 +1,4 @@
 import torch
-import numpy as np
-import scipy.linalg
 
 from catalyst.dl import registry
 

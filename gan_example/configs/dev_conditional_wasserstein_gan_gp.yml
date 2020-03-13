@@ -174,97 +174,102 @@ stages:
       num_samples: 100  # debug [recommended real value ~10-100k]
       eps: 1e-2  # debug
 
-#    # Metric-related callbacks:
-#
-#    memorizer:
-#      callback: MemoryAccumulatorCallback
-#      input_key:
-#        *real_data: &memory_real_data "real_data"
-#      output_key:
-#        *fake_data: &memory_fake_data "fake_data"
-#      memory_size: 200
-#
-#    feature_extractor_real:
-#      callback: MemoryFeatureExtractorCallback
-#      memory_key: *memory_real_data
-#      model_key: "feature_extractor"
-#      layer_key:
+    # Metric-related callbacks:
+    # TODO (important; low priority; usability) - how to compress this 100 lines to a reasonable amount (ideally single callback)?
+
+    memorizer:
+      callback: MemoryAccumulatorCallback
+      input_key:
+        *real_data: &memory_real_data "real_data"
+      output_key:
+        *fake_data: &memory_fake_data "fake_data"
+      memory_size: 200
+
+    feature_extractor_real:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_real_data
+      model_key: "feature_extractor"
+      channels: 1
+      layer_key:
+        model.fc2: &memory_real_features "real_features"
 #        layer2: &memory_real_features "real_features"
-#        "":
-#          activation:
-#            name: "softmax"
-#            dim: -1
-#          memory_out_key: &memory_real_probabilities "real_probabilities"
-#
-#    feature_extractor_fake:
-#      callback: MemoryFeatureExtractorCallback
-#      memory_key: *memory_fake_data
-#      model_key: "feature_extractor"
-#      layer_key:
+        "":
+          activation:
+            name: "softmax"
+            dim: -1
+          memory_out_key: &memory_real_probabilities "real_probabilities"
+
+    feature_extractor_fake:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_fake_data
+      model_key: "feature_extractor"
+      channels: 1
+      layer_key:
+        model.fc2: &memory_fake_features "fake_features"
 #        layer2: &memory_fake_features "fake_features"
-#        "":
-#          activation:
-#            name: "softmax"
-#            dim: -1
-#          memory_out_key: &memory_fake_probabilities "fake_probabilities"
-#
-#    distance_real_real_px:
-#      callback: MemoryTransformCallback
-#      batch_transform: RealFakeDistanceBatchTransform
-#      transform_in_key:
-#        *memory_real_data: X_real
-#        *memory_fake_data: X_fake
-#      transform_out_key: "D_px"
-#      list_args: ["rr", "rf", "ff"]
-#
-#    # scores on raw pixel data
-#
-#    knn_scores:
-#      callback: MemoryMultiMetricCallback
-#      prefix: "metrics/knn"
-#      list_args: ["acc", "acc_real", "acc_fake"]
-#      metric: KnnScores
-#      memory_key:
-#        D_px_rr: D_XX
-#        D_px_rf: D_XY
-#        D_px_ff: D_YY
-#      # metric_kwargs:
-#      k: 1
-#
-#    frechet_inception_distance_px:
-#      callback: MemoryMetricCallback
-#      memory_key:
-#        *memory_fake_data: samples_a
-#        *memory_real_data: samples_b
-#      prefix: "metrics/FID_px"
-#      metric: "FrechetInceptionDistance"
-#
-#    # scores on conv feature data
-#
-#    inception_score_conv:
-#      callback: MemoryMetricCallback
-#      memory_key:
-#        *memory_fake_probabilities: samples
-#      prefix: "metrics/IS"
-#      metric: "InceptionScore"
-#
-#    mode_score_conv:
-#      callback: MemoryMetricCallback
-#      memory_key:
-#        *memory_fake_probabilities: samples
-#        *memory_real_probabilities: samples_real
-#      prefix: "metrics/MS"
-#      metric: "ModeScore"
-#
-#    frechet_inception_distance_conv:
-#      callback: MemoryMetricCallback
-#      memory_key:
-#        *memory_fake_features: samples_a
-#        *memory_real_features: samples_b
-#      prefix: "metrics/FID"
-#      metric: "FrechetInceptionDistance"
-#
-#    # Metric-related callbacks [end]
+        "":
+          activation:
+            name: "softmax"
+            dim: -1
+          memory_out_key: &memory_fake_probabilities "fake_probabilities"
+
+    distance_real_real_px:
+      callback: MemoryTransformCallback
+      batch_transform: RealFakeDistanceBatchTransform
+      transform_in_key:
+        *memory_real_data: X_real
+        *memory_fake_data: X_fake
+      transform_out_key: "D_px"
+      list_args: ["rr", "rf", "ff"]
+
+    # scores on raw pixel data
+
+    knn_scores:
+      callback: MemoryMultiMetricCallback
+      prefix: "metrics/knn"
+      list_args: ["acc", "acc_real", "acc_fake"]
+      metric: KnnScores
+      memory_key:
+        D_px_rr: D_XX
+        D_px_rf: D_XY
+        D_px_ff: D_YY
+      # metric_kwargs:
+      k: 1
+
+    frechet_inception_distance_px:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_data: samples_a
+        *memory_real_data: samples_b
+      prefix: "metrics/FID_px"
+      metric: "FrechetInceptionDistance"
+
+    # scores on conv feature data
+
+    inception_score_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_probabilities: samples
+      prefix: "metrics/IS"
+      metric: "InceptionScore"
+
+    mode_score_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_probabilities: samples
+        *memory_real_probabilities: samples_real
+      prefix: "metrics/MS"
+      metric: "ModeScore"
+
+    frechet_inception_distance_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_features: samples_a
+        *memory_real_features: samples_b
+      prefix: "metrics/FID"
+      metric: "FrechetInceptionDistance"
+
+    # Metric-related callbacks [end]
 
   stage1:
 
