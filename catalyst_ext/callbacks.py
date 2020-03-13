@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Callable
 
 import numpy as np
 import torch
@@ -375,3 +375,107 @@ class MemoryTransformCallback(Callback):  # todo: rename or generalize
                 state.memory[key] = value
         else:
             raise NotImplementedError()
+
+
+@registry.Callback
+class PerceptualPathLengthCallback(MetricCallback):
+
+    def __init__(self, prefix: str,
+                 generator_model_key: str,
+                 embedder_model_key: str,
+                 noise_shape: Union[int, List[int]],
+                 interpolation: str = "spherical",
+                 num_samples: int = 100_000,
+                 eps: float = 1e-4,
+                 multiplier: float = 1.0, **metric_kwargs):
+        super().__init__(prefix=prefix,
+                         metric_fn=self._metric_fn,
+                         multiplier=multiplier,
+                         num_samples=num_samples,
+                         eps=eps,
+                         **metric_kwargs)
+        self.generator_model_key = generator_model_key
+        self.embedder_model_key = embedder_model_key
+        if interpolation == "spherical":
+            self.interpolate = self.slerp
+        elif interpolation == "linear":
+            self.interpolate = torch.lerp
+        else:
+            raise ValueError(f"Unknown interpolation '{interpolation}'")
+        if isinstance(noise_shape, int):
+            noise_shape = [noise_shape, ]
+        self.noise_shape = tuple(noise_shape)
+
+    def _compute_metric(self, state: _State):
+        generator = state.model[self.generator_model_key]
+        embedder = state.model[self.embedder_model_key]
+
+        g_training = generator.training
+        e_training = embedder.training
+        generator.train(False)
+        embedder.train(False)
+
+        metric_value = self._metric_fn(
+            generator=generator,
+            embedder=embedder,
+            **self.metrics_kwargs
+        )
+        generator.train(g_training)
+        embedder.train(e_training)
+        return metric_value
+
+    def _metric_fn(self, generator, embedder,
+                   batch_size=1,
+                   num_samples=100000, eps=1e-4):
+        # todo weighted sum perceptual
+        dist = lambda x, y: ((x-y)**2).sum(1)
+
+        device = next(generator.parameters()).device  # todo remove this hack
+        get_z = lambda: self._get_z(batch_size=batch_size, device=device)
+        get_t = lambda: torch.rand(size=(batch_size,), device=device)
+        get_c = lambda: self._get_generator_condition_inputs(batch_size,
+                                                             device=device)
+
+        scores = []
+        for _ in range(num_samples // batch_size):
+            z1 = get_z()
+            z2 = get_z()
+            t = get_t()
+            c_args = get_c()
+            e1 = embedder(generator(self.interpolate(z1, z2, t), *c_args))
+            e2 = embedder(generator(self.interpolate(z1, z2, t + eps), *c_args))
+            d = dist(e1, e2).mean().item() / eps ** 2
+            scores.append(d)
+        return np.mean(scores)
+
+    def _get_z(self, batch_size, device=None):
+        return torch.normal(0, 1,
+                            size=(batch_size, ) + self.noise_shape,
+                            device=device)
+
+    def _get_generator_condition_inputs(self, batch_size, device=None):
+        n_classes = 10  # todo
+        c_flat = torch.randint(0, n_classes, size=(batch_size,))
+        c_one_hot = torch.zeros((batch_size, n_classes))
+        c_one_hot[torch.arange(batch_size), c_flat] = 1
+        c_one_hot = c_one_hot.to(device)
+        return (c_one_hot, )
+
+    @staticmethod
+    def slerp(x1, x2, t):
+        x1_norm = x1 / torch.norm(x1, dim=1, keepdim=True)
+        x2_norm = x2 / torch.norm(x2, dim=1, keepdim=True)
+        omega = torch.acos((x1_norm * x2_norm).sum(1))
+        sin_omega = torch.sin(omega)
+        return (
+                (torch.sin((1 - t) * omega) / sin_omega).unsqueeze(1) * x1
+                + (torch.sin(t * omega) / sin_omega).unsqueeze(1) * x2
+        )
+
+    def on_batch_end(self, state: _State):
+        pass  # do nothing
+
+    def on_loader_end(self, state: _State):
+        with torch.no_grad():
+            metric = self._compute_metric(state) * self.multiplier
+        state.loader_metrics[self.prefix] = metric
