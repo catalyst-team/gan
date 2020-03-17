@@ -20,7 +20,7 @@ runner_params:
 
 common_hyperparams:
   dummy_input_key: &dummy_input_key "image"  # temporary workaround
-#  wd: &wasserstein_distance "wasserstein_distance"
+  wd: &wasserstein_distance "wasserstein_distance"
 
 model_params:
   _key_value: True
@@ -34,14 +34,11 @@ model_params:
   feature_extractor:
     model: mnist
     pretrained: True
-#  feature_extractor:
-#    model: resnet18
-#    pretrained: False
 
 
 args:
   expdir: "gan_example"
-  baselogdir: "./logs/gan_example/wasserstein_gan_gp"
+  baselogdir: "./logs/gan_example/conditional_wasserstein_gan_gp/static"
 
 
 stages:
@@ -86,28 +83,13 @@ stages:
       criterion: GradientPenaltyLoss
 
   callbacks_params:
-#    phase_manager:
-#      callback: PhaseManagerCallback
-#      # one of "all" (use all callbacks), "same" (same phases as in train)
-#      valid_mode: "all"
-#      train_phases:
-#        *discriminator_train_phase: 5
-#        *generator_train_phase: 1
-
-    tricky_phase_manager:
-      callback: SmartPhaseManagerCallback
+    phase_manager:
+      callback: PhaseManagerCallback
+      # one of "all" (use all callbacks), "same" (same phases as in train)
       valid_mode: "all"
       train_phases:
-        *discriminator_train_phase:
-          steps: 5
-          batch_metric_key: &wasserstein_distance "wasserstein_distance"
-          threshold: 5  # TODO: change
-          greater_is_good: True
-        *generator_train_phase:
-          steps: 5
-          batch_metric_key: *wasserstein_distance
-          threshold: 5  # TODO: change
-          greater_is_good: False
+        *discriminator_train_phase: 5
+        *generator_train_phase: 1
 
     tricky_metric_manager_callback: # saves batch_metrics to prev_batch_metrics
       callback: TrickyMetricManagerCallback

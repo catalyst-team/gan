@@ -1,0 +1,11 @@
+catalyst-dl run -C gan_example/configs_static/conditional_gan.yml
+catalyst-dl run -C gan_example/configs_static/conditional_wasserstein_gan_gp.yml
+catalyst-dl run -C gan_example/configs_static/vanilla_gan.yml
+catalyst-dl run -C gan_example/configs_static/wasserstein_gan.yml
+catalyst-dl run -C gan_example/configs_static/wasserstein_gan_gp.yml
+
+catalyst-dl run -C gan_example/configs_dynamic/conditional_gan.yml
+catalyst-dl run -C gan_example/configs_dynamic/conditional_wasserstein_gan_gp.yml
+catalyst-dl run -C gan_example/configs_dynamic/vanilla_gan.yml
+catalyst-dl run -C gan_example/configs_dynamic/wasserstein_gan.yml
+catalyst-dl run -C gan_example/configs_dynamic/wasserstein_gan_gp.yml

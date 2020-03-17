@@ -1,47 +1,34 @@
 runner_params:
   # input keys
   # Note: for albumentations transforms we have to have key "image" =(
-  data_input_key: &real_data "image"  # do not change!
+  data_input_key: &real_data "image"
   class_input_key: &class_targets "class_targets"
   noise_input_key: &noise_input "noise"
   # output keys
-  fake_logits_output_key: &fake_validity "fake_validity"
-  real_logits_output_key: &real_validity "real_validity"
+  fake_logits_output_key: &fake_logits "fake_logits"
+  real_logits_output_key: &real_logits "real_logits"
   fake_data_output_key: &fake_data "fake_image"
-  # condition keys (as this is conditional gan)
-  fake_condition_keys: [&class_targets_one_hot "class_targets_one_hot"]
-  real_condition_keys: ["class_targets_one_hot"]
   # phases
   generator_train_phase: &generator_train_phase generator_train
   discriminator_train_phase: &discriminator_train_phase discriminator_train
   # model keys:
   generator_model_key: &generator_model_name "generator"
-  discriminator_model_key: &critic_model_name "critic"
-
-common_hyperparams:
-  dummy_input_key: &dummy_input_key "image"  # temporary workaround
-#  wd: &wasserstein_distance "wasserstein_distance"
+  discriminator_model_key: &discriminator_model_name "discriminator"
 
 model_params:
   _key_value: True
   generator:
-    model: SimpleCGenerator
+    model: SimpleGenerator
     noise_dim: &noise_dim 16
-    num_classes: &n_classes 10
-  critic:
-    model: SimpleCDiscriminator
-    num_classes: *n_classes
+  discriminator:
+    model: SimpleDiscriminator
   feature_extractor:
     model: mnist
     pretrained: True
-#  feature_extractor:
-#    model: resnet18
-#    pretrained: False
-
 
 args:
   expdir: "gan_example"
-  baselogdir: "./logs/gan_example/wasserstein_gan_gp"
+  baselogdir: "./logs/gan_example/vanilla_gan/static"
 
 
 stages:
@@ -57,10 +44,12 @@ stages:
       - transform: AdditionalNoiseTensor
         tensor_size: [*noise_dim]
         output_key: *noise_input
-      - transform: OneHotTargetTransform
-        num_classes: *n_classes
-        input_key: *class_targets
-        output_key: *class_targets_one_hot
+      - transform: AdditionalScalar
+        value: 1.
+        output_key: &real_targets "real_targets"
+      - transform: AdditionalScalar
+        value: 0.
+        output_key: &fake_targets "fake_targets"
 
   data_params:
     batch_size: 64
@@ -79,84 +68,73 @@ stages:
     prev_batch_metrics: {}
 
   criterion_params:
-    _key_value: True
-    mean_output_loss:
-      criterion: MeanOutputLoss
-    gradient_penalty:
-      criterion: GradientPenaltyLoss
+    criterion: BCEWithLogitsLoss
 
   callbacks_params:
-#    phase_manager:
-#      callback: PhaseManagerCallback
-#      # one of "all" (use all callbacks), "same" (same phases as in train)
-#      valid_mode: "all"
-#      train_phases:
-#        *discriminator_train_phase: 5
-#        *generator_train_phase: 1
-
-    tricky_phase_manager:
-      callback: SmartPhaseManagerCallback
+    phase_manager:
+      callback: PhaseManagerCallback
+      # one of "all" (use all callbacks), "same" (same phases as in train)
       valid_mode: "all"
       train_phases:
-        *discriminator_train_phase:
-          steps: 5
-          batch_metric_key: &wasserstein_distance "wasserstein_distance"
-          threshold: 5  # TODO: change
-          greater_is_good: True
-        *generator_train_phase:
-          steps: 5
-          batch_metric_key: *wasserstein_distance
-          threshold: 5  # TODO: change
-          greater_is_good: False
-
-    tricky_metric_manager_callback: # saves batch_metrics to prev_batch_metrics
-      callback: TrickyMetricManagerCallback
+        *discriminator_train_phase: 1
+        *generator_train_phase: 1
 
     loss_g:
       _wrapper: &g_train_wrapper
         callback: PhaseBatchWrapperCallback
         active_phases: [*generator_train_phase]
       callback: CriterionCallback
-      input_key: *dummy_input_key  # input key does not matter
-      output_key: *fake_validity
-      criterion_key: mean_output_loss
+      input_key: *real_targets
+      output_key: *fake_logits
       prefix: loss_g
-      multiplier: -1.0
 
     loss_d_real:
       _wrapper: &d_train_wrapper
         callback: PhaseBatchWrapperCallback
         active_phases: [*discriminator_train_phase]
       callback: CriterionCallback
-      input_key: *dummy_input_key  # input key does not matter
-      output_key: *real_validity
-      criterion_key: mean_output_loss
+      input_key: *real_targets
+      output_key: *real_logits
       prefix: loss_d_real
     loss_d_fake:
       _wrapper: *d_train_wrapper
       callback: CriterionCallback
-      input_key: *dummy_input_key  # input key does not matter
-      output_key: *fake_validity
-      criterion_key: mean_output_loss
+      input_key: *fake_targets
+      output_key: *fake_logits
       prefix: loss_d_fake
-    loss_d_gp:
-      _wrapper: *d_train_wrapper
-      callback: GradientPenaltyCallback
-      real_input_key: *real_data
-      fake_output_key: *fake_data
-      critic_model_key: *critic_model_name
-      condition_keys: [*class_targets_one_hot] # None
-      criterion_key: gradient_penalty
-      prefix: "loss_d_gp"
     loss_d:
       _wrapper: *d_train_wrapper
       callback: MetricAggregationCallback
-      mode: "weighted_sum"
-      prefix: &loss_d loss_d
+      metrics: [loss_d_real, loss_d_fake]
+      mode: "mean"
+      prefix: loss_d
+
+    discriminator_acc_real:
+      # no wrapper?
+      callback: AccuracyCallback
+      prefix: "discriminator_metrics/real_acc"
+      input_key: *real_targets
+      output_key: *real_logits
+      activation: "Sigmoid"
+      threshold: 0.5
+
+    discriminator_acc_fake:
+      # no wrapper?
+      callback: AccuracyCallback
+      prefix: "discriminator_metrics/fake_acc"
+      input_key: *fake_targets
+      output_key: *fake_logits
+      activation: "Sigmoid"
+      threshold: 0.5
+
+    discriminator_acc:
+      # no wrapper?
+      callback: MetricAggregationCallback
+      prefix: "discriminator_metrics/full_acc"
+      mode: "mean"
       metrics:
-        loss_d_real: -1.0
-        loss_d_fake: 1.0
-        loss_d_gp: 10.0  # gradient penalty multiplier
+        - "discriminator_metrics/real_acc01"
+        - "discriminator_metrics/fake_acc01"
 
     optim_g:
       _wrapper: *g_train_wrapper
@@ -169,13 +147,6 @@ stages:
       optimizer_key: discriminator
       loss_key: loss_d
 
-    wasserstein_distance:
-#      _wrapper: *d_train_wrapper
-      callback: WassersteinDistanceCallback
-      prefix: *wasserstein_distance
-      real_validity_output_key: *real_validity
-      fake_validity_output_key: *fake_validity
-
     visualizer:
       callback: VisualizationCallback
       output_keys: *fake_data
@@ -186,7 +157,7 @@ stages:
       callback: CheckpointCallback
 
     perceptual_path_length:
-      callback: CGanPerceptualPathLengthCallback
+      callback: PerceptualPathLengthCallback
       prefix: "metrics/PPL"
       generator_model_key: *generator_model_name
       embedder_model_key: feature_extractor
@@ -298,14 +269,8 @@ stages:
       generator:
         optimizer: Adam
         _model: [*generator_model_name]
-        lr: 0.0001
-        betas:
-          - 0.5
-          - 0.5
+        lr: 0.0002
       discriminator:
         optimizer: Adam
-        _model: [*critic_model_name]
-        lr: 0.0001
-        betas:
-          - 0.5
-          - 0.9
+        _model: [*discriminator_model_name]
+        lr: 0.0002

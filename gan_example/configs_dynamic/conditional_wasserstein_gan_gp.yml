@@ -34,14 +34,11 @@ model_params:
   feature_extractor:
     model: mnist
     pretrained: True
-#  feature_extractor:
-#    model: resnet18
-#    pretrained: False
 
 
 args:
   expdir: "gan_example"
-  baselogdir: "./logs/gan_example/wasserstein_gan_gp"
+  baselogdir: "./logs/gan_example/conditional_wasserstein_gan_gp/dynamic"
 
 
 stages:
@@ -86,13 +83,6 @@ stages:
       criterion: GradientPenaltyLoss
 
   callbacks_params:
-#    phase_manager:
-#      callback: PhaseManagerCallback
-#      # one of "all" (use all callbacks), "same" (same phases as in train)
-#      valid_mode: "all"
-#      train_phases:
-#        *discriminator_train_phase: 5
-#        *generator_train_phase: 1
 
     tricky_phase_manager:
       callback: SmartPhaseManagerCallback

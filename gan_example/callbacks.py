@@ -2,8 +2,10 @@
 # isort: skip_file
 import torch
 import torchvision.utils
+from catalyst.core import _State
 
 from catalyst.dl import Callback, CallbackOrder, State
+from catalyst.dl.callbacks import MetricManagerCallback, PhaseManagerCallback
 from catalyst.utils.tools.tensorboard import SummaryWriter
 
 
@@ -132,4 +134,11 @@ class VisualizationCallback(Callback):
             self.visualize(state)
 
 
-__all__ = ["VisualizationCallback"]
+class TrickyMetricManagerCallback(MetricManagerCallback):
+
+    def on_batch_start(self, state: _State):
+        state.prev_batch_metrics = state.batch_metrics
+        super().on_batch_start(state)
+
+
+__all__ = ["VisualizationCallback", "TrickyMetricManagerCallback"]

@@ -8,9 +8,6 @@ runner_params:
   fake_logits_output_key: &fake_validity "fake_validity"
   real_logits_output_key: &real_validity "real_validity"
   fake_data_output_key: &fake_data "fake_image"
-  # condition keys (as this is conditional gan)
-  fake_condition_keys: [&class_targets_one_hot "class_targets_one_hot"]
-  real_condition_keys: ["class_targets_one_hot"]
   # phases
   generator_train_phase: &generator_train_phase generator_train
   discriminator_train_phase: &discriminator_train_phase discriminator_train
@@ -25,23 +22,18 @@ common_hyperparams:
 model_params:
   _key_value: True
   generator:
-    model: SimpleCGenerator
+    model: SimpleGenerator
     noise_dim: &noise_dim 16
-    num_classes: &n_classes 10
   critic:
-    model: SimpleCDiscriminator
-    num_classes: *n_classes
+    model: SimpleDiscriminator
   feature_extractor:
     model: mnist
     pretrained: True
-#  feature_extractor:
-#    model: resnet18
-#    pretrained: False
 
 
 args:
   expdir: "gan_example"
-  baselogdir: "./logs/gan_example/wasserstein_gan_gp"
+  baselogdir: "./logs/gan_example/wasserstein_gan_gp/dynamic"
 
 
 stages:
@@ -57,10 +49,6 @@ stages:
       - transform: AdditionalNoiseTensor
         tensor_size: [*noise_dim]
         output_key: *noise_input
-      - transform: OneHotTargetTransform
-        num_classes: *n_classes
-        input_key: *class_targets
-        output_key: *class_targets_one_hot
 
   data_params:
     batch_size: 64
@@ -86,13 +74,6 @@ stages:
       criterion: GradientPenaltyLoss
 
   callbacks_params:
-#    phase_manager:
-#      callback: PhaseManagerCallback
-#      # one of "all" (use all callbacks), "same" (same phases as in train)
-#      valid_mode: "all"
-#      train_phases:
-#        *discriminator_train_phase: 5
-#        *generator_train_phase: 1
 
     tricky_phase_manager:
       callback: SmartPhaseManagerCallback
@@ -145,7 +126,6 @@ stages:
       real_input_key: *real_data
       fake_output_key: *fake_data
       critic_model_key: *critic_model_name
-      condition_keys: [*class_targets_one_hot] # None
       criterion_key: gradient_penalty
       prefix: "loss_d_gp"
     loss_d:
@@ -186,7 +166,7 @@ stages:
       callback: CheckpointCallback
 
     perceptual_path_length:
-      callback: CGanPerceptualPathLengthCallback
+      callback: PerceptualPathLengthCallback
       prefix: "metrics/PPL"
       generator_model_key: *generator_model_name
       embedder_model_key: feature_extractor

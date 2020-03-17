@@ -9,8 +9,8 @@ from catalyst.core import _State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
 from catalyst.utils import get_dictkey_auto_fn
 
-from utils import get_metric, get_batch_transform, get_module
-import utils
+from .utils import get_metric, get_batch_transform, get_module
+from . import utils
 
 logger = logging.getLogger(__name__)
 

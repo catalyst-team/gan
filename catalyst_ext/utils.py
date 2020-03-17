@@ -2,8 +2,8 @@ from typing import Dict, Union
 
 import torch
 
-from batch_transforms import BATCH_TRANSFORMS
-from metrics import METRICS
+from .batch_transforms import BATCH_TRANSFORMS
+from .metrics import METRICS
 
 
 # config parsing
