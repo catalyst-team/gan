@@ -1,18 +1,26 @@
 import logging
 from collections import defaultdict
-from typing import Dict, List, Union, Iterable, Optional, Sized
+from typing import Dict, List, Union, Iterable, Optional
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from catalyst import utils
 from catalyst.core import _State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
+from catalyst.utils import get_dictkey_auto_fn
 
-from metrics import METRICS
-from batch_transforms import BATCH_TRANSFORMS
+from utils import get_metric, get_batch_transform, get_module
+import utils
 
 logger = logging.getLogger(__name__)
+
+
+def _stack_memory_lists_to_tensors(state: _State):
+    for key, values_list in state.memory.items():
+        assert len(values_list) > 0
+        if isinstance(values_list, (list, tuple)):
+            assert isinstance(values_list[0], torch.Tensor)
+            state.memory[key] = torch.stack(values_list, dim=0)
 
 
 @registry.Callback
@@ -22,17 +30,10 @@ class MemoryMetricCallback(MetricCallback):
                  metric: Union[str, Dict[str, str]],
                  memory_key: Union[str, List[str], Dict[str, str]],
                  multiplier: float = 1.0, **metric_kwargs):
-        # TODO: move this block (get_metric) to separate place?
-        if isinstance(metric, str):
-            metric = {"metric": metric}
-        elif isinstance(metric, dict):
-            pass
-        else:
-            raise NotImplementedError()
-        metric_fn = METRICS.get_from_params(**metric)
+        metric_fn = get_metric(metric)
 
         self.memory_key = memory_key
-        self._get_memory = utils.get_dictkey_auto_fn(self.memory_key)
+        self._get_memory = get_dictkey_auto_fn(self.memory_key)
         if isinstance(self.memory_key, str):
             self._compute_metric = self._compute_metric_value
         elif isinstance(self.memory_key, (list, tuple, dict)):
@@ -71,12 +72,12 @@ class MemoryMetricCallback(MetricCallback):
 class MemoryMultiMetricCallback(MemoryMetricCallback):
 
     def __init__(self, prefix: str, metric: Union[str, Dict[str, str]],
-                 list_args: List,
+                 suffixes: List,
                  memory_key: Union[str, List[str], Dict[str, str]],
                  multiplier: float = 1.0, **metric_kwargs):
         super().__init__(prefix, metric, memory_key, multiplier,
                          **metric_kwargs)
-        self.list_args = list_args  # TODO: rename `list_args`
+        self.suffixes = suffixes
 
     def on_loader_end(self, state: _State):
         with torch.no_grad():
@@ -84,7 +85,7 @@ class MemoryMultiMetricCallback(MemoryMetricCallback):
             if isinstance(metrics_, torch.Tensor):
                 metrics_ = metrics_.detach().cpu().numpy()
 
-        for arg, metric in zip(self.list_args, metrics_):
+        for arg, metric in zip(self.suffixes, metrics_):
             if isinstance(arg, int):
                 key = f"{self.prefix}{arg:02}"
             else:
@@ -127,12 +128,7 @@ class MemoryAccumulatorCallback(Callback):
         self._start_idx = defaultdict(int)  # default value 0
 
     def on_loader_end(self, state: _State):
-        # TODO: move this aggregation to separate place/callback/function
-        for key, values_list in state.memory.items():
-            assert len(values_list) > 0
-            if isinstance(values_list, (list, tuple)):
-                assert isinstance(values_list[0], torch.Tensor)
-                state.memory[key] = torch.stack(values_list, dim=0)
+        _stack_memory_lists_to_tensors(state)
 
     def on_batch_end(self, state: _State):
         for input_key, memory_key in self.input_key.items():
@@ -261,30 +257,13 @@ class MemoryFeatureExtractorCallback(Callback):
             handle.remove()
 
         # convert memory lists to tensors
-        # TODO: remove duplicated code below
-        for key, values_list in state.memory.items():
-            assert len(values_list) > 0
-            if isinstance(values_list, (list, tuple)):
-                assert isinstance(values_list[0], torch.Tensor)
-                state.memory[key] = torch.stack(values_list, dim=0)
+        _stack_memory_lists_to_tensors(state)
 
     def _prepare_batch_input(self, batch):
-        # TODO: move to external func?
-        if isinstance(batch, list):
-            batch = torch.stack(batch, dim=0)
-        elif isinstance(batch, torch.Tensor):
-            pass
-        else:
-            raise NotImplementedError()
+        batch = utils.as_tensor(batch)
 
-        channels = batch.size(1)
-        if channels != self.channels:
-            if channels == 1:
-                batch = torch.cat([batch] * self.channels, dim=1)
-            elif self.channels == 1:
-                batch = torch.mean(batch, dim=1, keepdim=True)
-            else:
-                raise NotImplementedError()
+        batch = utils.change_num_image_channels(batch,
+                                                channels_num_out=self.channels)
 
         if self.need_resize:
             batch = F.interpolate(batch, **self.resize_params)
@@ -304,10 +283,9 @@ class MemoryFeatureExtractorCallback(Callback):
         self._extracted_features = {}
 
     def _wrap_model(self, model):
-        # TODO: move to external func
         handles = []
         for module_key, output_params in self.layer_key.items():
-            module = self._get_module(model, module_key)
+            module = get_module(model, module_key)
             output_key, activation, activation_params = \
                 self._parse_layer_output_params(output_params)
 
@@ -323,20 +301,24 @@ class MemoryFeatureExtractorCallback(Callback):
         return handles
 
     @staticmethod
-    def _get_module(model, path):
-        # TODO: move to external function
-        if path == '':
-            return model
-
-        curr = model
-        for attrib_name in path.split('.'):
-            # prev = curr
-            curr = getattr(curr, attrib_name)
-        return curr
-
-    @staticmethod
     def _parse_layer_output_params(params):
-        # TODO (low priority) - think how to rewrite & change api to make it more elegant
+        """
+        Returns tuple (output_key, activation, activation_params)
+        output_key - memory output key
+        activation - activation function to apply
+        activation_params
+            - params for activation (activation(x, **activation_params))
+
+        See example inputs below
+        ```yaml
+            params_example_1: "fake_features"
+            params_example_2:
+              activation:
+                name: "softmax"
+                dim: -1
+              memory_out_key: "fake_probabilities"
+        ```
+        """
         # return output_key, activation, activation_params
         if isinstance(params, str):
             output_key = params
@@ -359,28 +341,20 @@ class MemoryFeatureExtractorCallback(Callback):
 
 
 @registry.Callback
-class MemoryTransformCallback(Callback):  # todo: rename or generalize
+class MemoryTransformCallback(Callback):  # todo: generalize
 
     def __init__(self,
                  batch_transform: Dict[str, str],
                  transform_in_key: Union[str, List[str], Dict[str, str]],
                  transform_out_key: str = None,
-                 list_args: List[str] = None):
-        # TODO: rename list_args
+                 suffixes: List[str] = None):
         super().__init__(order=CallbackOrder.Internal)
-        # TODO: move block below to separate method?
-        if isinstance(batch_transform, str):
-            batch_transform = {"batch_transform": batch_transform}
-        elif isinstance(batch_transform, dict):
-            pass
-        else:
-            raise NotImplementedError()
-        self.transform_fn = BATCH_TRANSFORMS.get_from_params(**batch_transform)
+        self.transform_fn = get_batch_transform(batch_transform)
 
-        self._get_input_key = utils.get_dictkey_auto_fn(transform_in_key)
+        self._get_input_key = get_dictkey_auto_fn(transform_in_key)
         self.transform_in_key = transform_in_key
         self.transform_out_key = transform_out_key
-        self.list_args = list_args or []
+        self.suffixes = suffixes or []
 
     def on_loader_end(self, state: _State):
         input = self._get_input_key(state.memory, self.transform_in_key)
@@ -388,7 +362,7 @@ class MemoryTransformCallback(Callback):  # todo: rename or generalize
         if isinstance(output, torch.Tensor):
             state.memory[self.transform_out_key] = output
         elif isinstance(output, (list, tuple)):
-            for key, value in zip(self.list_args, output):
+            for key, value in zip(self.suffixes, output):
                 assert isinstance(value, torch.Tensor)
 
                 if self.transform_out_key is not None:
@@ -408,7 +382,7 @@ class PerceptualPathLengthCallback(MetricCallback):
                  interpolation: str = "spherical",
                  num_samples: int = 100_000,
                  eps: float = 1e-4,
-                 batch_size: int = 1,  # todo change default to larger value
+                 batch_size: int = 32,
                  multiplier: float = 1.0,
                  **metric_kwargs):
         super().__init__(prefix=prefix,
@@ -421,7 +395,7 @@ class PerceptualPathLengthCallback(MetricCallback):
         self.generator_model_key = generator_model_key
         self.embedder_model_key = embedder_model_key
         if interpolation == "spherical":
-            self.interpolate = self.slerp
+            self.interpolate = utils.slerp
         elif interpolation == "linear":
             self.interpolate = torch.lerp
         else:
@@ -478,24 +452,7 @@ class PerceptualPathLengthCallback(MetricCallback):
                             device=device)
 
     def _get_generator_condition_inputs(self, batch_size, device=None):
-        n_classes = 10  # todo: add additional params to __init__
-        c_flat = torch.randint(0, n_classes, size=(batch_size,))
-        c_one_hot = torch.zeros((batch_size, n_classes))
-        c_one_hot[torch.arange(batch_size), c_flat] = 1
-        c_one_hot = c_one_hot.to(device)
-        return (c_one_hot, )
-
-    @staticmethod
-    def slerp(x1, x2, t):
-        # TODO: move to utils
-        x1_norm = x1 / torch.norm(x1, dim=1, keepdim=True)
-        x2_norm = x2 / torch.norm(x2, dim=1, keepdim=True)
-        omega = torch.acos((x1_norm * x2_norm).sum(1))
-        sin_omega = torch.sin(omega)
-        return (
-                (torch.sin((1 - t) * omega) / sin_omega).unsqueeze(1) * x1
-                + (torch.sin(t * omega) / sin_omega).unsqueeze(1) * x2
-        )
+        return ()
 
     def on_batch_end(self, state: _State):
         pass  # do nothing
@@ -504,3 +461,18 @@ class PerceptualPathLengthCallback(MetricCallback):
         with torch.no_grad():
             metric = self._compute_metric(state) * self.multiplier
         state.loader_metrics[self.prefix] = metric
+
+
+@registry.Callback
+class CGanPerceptualPathLengthCallback(PerceptualPathLengthCallback):
+
+    def __init__(self, num_classes=10, **kwargs):
+        super().__init__(**kwargs)
+        self.num_classes = num_classes
+
+    def _get_generator_condition_inputs(self, batch_size, device=None):
+        c_flat = torch.randint(0, self.num_classes, size=(batch_size,))
+        c_one_hot = torch.zeros((batch_size, self.num_classes))
+        c_one_hot[torch.arange(batch_size), c_flat] = 1
+        c_one_hot = c_one_hot.to(device)
+        return (c_one_hot, )

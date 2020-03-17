@@ -166,7 +166,7 @@ stages:
       callback: CheckpointCallback
 
     perceptual_path_length:
-      callback: PerceptualPathLengthCallback
+      callback: CGanPerceptualPathLengthCallback
       prefix: "metrics/PPL"
       generator_model_key: *generator_model_name
       embedder_model_key: feature_extractor
@@ -220,14 +220,14 @@ stages:
         *memory_real_data: X_real
         *memory_fake_data: X_fake
       transform_out_key: "D_px"
-      list_args: ["rr", "rf", "ff"]
+      suffixes: ["rr", "rf", "ff"]
 
     # scores on raw pixel data
 
     knn_scores:
       callback: MemoryMultiMetricCallback
       prefix: "metrics/knn"
-      list_args: ["acc", "acc_real", "acc_fake"]
+      suffixes: ["acc", "acc_real", "acc_fake"]
       metric: KnnScores
       memory_key:
         D_px_rr: D_XX
