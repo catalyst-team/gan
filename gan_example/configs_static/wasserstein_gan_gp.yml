@@ -22,10 +22,10 @@ common_hyperparams:
 model_params:
   _key_value: True
   generator:
-    model: SimpleGenerator
+    model: ScitatorGenerator
     noise_dim: &noise_dim 16
   critic:
-    model: SimpleDiscriminator
+    model: ScitatorDiscriminator
   feature_extractor:
     model: mnist
     pretrained: True
