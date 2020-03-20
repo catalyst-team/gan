@@ -25,11 +25,11 @@ common_hyperparams:
 model_params:
   _key_value: True
   generator:
-    model: ScitatorCGenerator
+    model: SimpleCGenerator
     noise_dim: &noise_dim 16
     num_classes: &n_classes 10
   critic:
-    model: ScitatorCDiscriminator
+    model: SimpleCDiscriminator
     num_classes: *n_classes
   feature_extractor:
     model: mnist

@@ -18,10 +18,10 @@ runner_params:
 model_params:
   _key_value: True
   generator:
-    model: ScitatorGenerator
+    model: SimpleGenerator
     noise_dim: &noise_dim 16
   discriminator:
-    model: ScitatorDiscriminator
+    model: SimpleDiscriminator
   feature_extractor:
     model: mnist
     pretrained: True
