@@ -1,0 +1,282 @@
+runner_params:
+  # input keys
+  # Note: for albumentations transforms we have to have key "image" =(
+  data_input_key: &real_data "image"
+  class_input_key: &class_targets "class_targets"
+  noise_input_key: &noise_input "noise"
+  # output keys
+  fake_logits_output_key: &fake_logits "fake_logits"
+  real_logits_output_key: &real_logits "real_logits"
+  fake_data_output_key: &fake_data "fake_image"
+  # phases
+  generator_train_phase: &generator_train_phase generator_train
+  discriminator_train_phase: &discriminator_train_phase discriminator_train
+  # model keys:
+  generator_model_key: &generator_model_name "generator"
+  discriminator_model_key: &discriminator_model_name "discriminator"
+
+model_params:
+  _key_value: True
+  generator:
+    model: SimpleGenerator
+    noise_dim: &noise_dim 64
+    conv_mode: True
+    n_hidden: 128
+    hidden_multiplier: 2
+  discriminator:
+    model: SimpleDiscriminator
+    conv_mode: True
+    n_hidden: 128
+    hidden_multiplier: 2
+  feature_extractor:
+    model: mnist
+    pretrained: True
+
+args:
+  expdir: "gan_example"
+  baselogdir: "./logs/gan_example/vanilla_gan/static"
+
+
+stages:
+
+  transform_params:
+    transform: A.Compose
+    transforms:
+      - transform: AsImage
+      - transform: A.Normalize
+        mean: [0.5]
+        std: [0.5]
+      - transform: A.ToTensorV2
+      - transform: AdditionalNoiseTensor
+        tensor_size: [*noise_dim]
+        output_key: *noise_input
+      - transform: AdditionalScalar
+        value: 1.
+        output_key: &real_targets "real_targets"
+      - transform: AdditionalScalar
+        value: 0.
+        output_key: &fake_targets "fake_targets"
+
+  data_params:
+    batch_size: 64
+    num_workers: 0
+
+    image_key: *real_data
+    target_key: *class_targets
+
+  state_params:
+    num_epochs: 10
+    main_metric: "metrics/FID"
+    minimize_metric: True
+    batch_consistant_metrics: False
+    # todo: add somewhere
+    memory: {}
+    prev_batch_metrics: {}
+
+  criterion_params:
+    criterion: BCEWithLogitsLoss
+
+  callbacks_params:
+    phase_manager:
+      callback: PhaseManagerCallback
+      # one of "all" (use all callbacks), "same" (same phases as in train)
+      valid_mode: "all"
+      train_phases:
+        *discriminator_train_phase: 1
+        *generator_train_phase: 1
+
+    loss_g:
+      _wrapper: &g_train_wrapper
+        callback: PhaseBatchWrapperCallback
+        active_phases: [*generator_train_phase]
+      callback: CriterionCallback
+      input_key: *real_targets
+      output_key: *fake_logits
+      prefix: loss_g
+
+    loss_d_real:
+      _wrapper: &d_train_wrapper
+        callback: PhaseBatchWrapperCallback
+        active_phases: [*discriminator_train_phase]
+      callback: CriterionCallback
+      input_key: *real_targets
+      output_key: *real_logits
+      prefix: loss_d_real
+    loss_d_fake:
+      _wrapper: *d_train_wrapper
+      callback: CriterionCallback
+      input_key: *fake_targets
+      output_key: *fake_logits
+      prefix: loss_d_fake
+    loss_d:
+      _wrapper: *d_train_wrapper
+      callback: MetricAggregationCallback
+      metrics: [loss_d_real, loss_d_fake]
+      mode: "mean"
+      prefix: loss_d
+
+    discriminator_acc_real:
+      # no wrapper?
+      callback: AccuracyCallback
+      prefix: "discriminator_metrics/real_acc"
+      input_key: *real_targets
+      output_key: *real_logits
+      activation: "Sigmoid"
+      threshold: 0.5
+
+    discriminator_acc_fake:
+      # no wrapper?
+      callback: AccuracyCallback
+      prefix: "discriminator_metrics/fake_acc"
+      input_key: *fake_targets
+      output_key: *fake_logits
+      activation: "Sigmoid"
+      threshold: 0.5
+
+    discriminator_acc:
+      # no wrapper?
+      callback: MetricAggregationCallback
+      prefix: "discriminator_metrics/full_acc"
+      mode: "mean"
+      metrics:
+        - "discriminator_metrics/real_acc01"
+        - "discriminator_metrics/fake_acc01"
+
+    optim_g:
+      _wrapper: *g_train_wrapper
+      callback: OptimizerCallback
+      optimizer_key: generator
+      loss_key: loss_g
+    optim_d:
+      _wrapper: *d_train_wrapper
+      callback: OptimizerCallback
+      optimizer_key: discriminator
+      loss_key: loss_d
+
+    visualizer:
+      callback: VisualizationCallback
+      output_keys: *fake_data
+      num_rows: 5
+      max_images: 25
+
+    saver:
+      callback: CheckpointCallback
+
+    perceptual_path_length:
+      callback: PerceptualPathLengthCallback
+      prefix: "metrics/PPL"
+      generator_model_key: *generator_model_name
+      embedder_model_key: feature_extractor
+      noise_shape: *noise_dim
+      num_samples: 100  # debug [recommended real value ~10-100k]
+      eps: 1e-2  # debug
+
+    # Metric-related callbacks:
+    # TODO (important; low priority; usability) - how to compress this 100 lines to a reasonable amount (ideally single callback)?
+
+    memorizer:
+      callback: MemoryAccumulatorCallback
+      input_key:
+        *real_data: &memory_real_data "real_data"
+      output_key:
+        *fake_data: &memory_fake_data "fake_data"
+      memory_size: 200
+
+    feature_extractor_real:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_real_data
+      model_key: "feature_extractor"
+      channels: 1
+      layer_key:
+        model.fc2: &memory_real_features "real_features"
+#        layer2: &memory_real_features "real_features"
+        "":
+          activation:
+            name: "softmax"
+            dim: -1
+          memory_out_key: &memory_real_probabilities "real_probabilities"
+
+    feature_extractor_fake:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_fake_data
+      model_key: "feature_extractor"
+      channels: 1
+      layer_key:
+        model.fc2: &memory_fake_features "fake_features"
+#        layer2: &memory_fake_features "fake_features"
+        "":
+          activation:
+            name: "softmax"
+            dim: -1
+          memory_out_key: &memory_fake_probabilities "fake_probabilities"
+
+    distance_real_real_px:
+      callback: MemoryTransformCallback
+      batch_transform: RealFakeDistanceBatchTransform
+      transform_in_key:
+        *memory_real_data: X_real
+        *memory_fake_data: X_fake
+      transform_out_key: "D_px"
+      suffixes: ["rr", "rf", "ff"]
+
+    # scores on raw pixel data
+
+    knn_scores:
+      callback: MemoryMultiMetricCallback
+      prefix: "metrics/knn"
+      suffixes: ["acc", "acc_real", "acc_fake"]
+      metric: KnnScores
+      memory_key:
+        D_px_rr: D_XX
+        D_px_rf: D_XY
+        D_px_ff: D_YY
+      # metric_kwargs:
+      k: 1
+
+    frechet_inception_distance_px:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_data: samples_a
+        *memory_real_data: samples_b
+      prefix: "metrics/FID_px"
+      metric: "FrechetInceptionDistance"
+
+    # scores on conv feature data
+
+    inception_score_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_probabilities: samples
+      prefix: "metrics/IS"
+      metric: "InceptionScore"
+
+    mode_score_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_probabilities: samples
+        *memory_real_probabilities: samples_real
+      prefix: "metrics/MS"
+      metric: "ModeScore"
+
+    frechet_inception_distance_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_features: samples_a
+        *memory_real_features: samples_b
+      prefix: "metrics/FID"
+      metric: "FrechetInceptionDistance"
+
+    # Metric-related callbacks [end]
+
+  stage1:
+
+    optimizer_params:
+      _key_value: True
+      generator:
+        optimizer: Adam
+        _model: [*generator_model_name]
+        lr: 0.0002
+      discriminator:
+        optimizer: Adam
+        _model: [*discriminator_model_name]
+        lr: 0.0002

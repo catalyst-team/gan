@@ -1,0 +1,6 @@
+catalyst-dl run -C gan_example/convergence/static/gan016.yml --logdir logs/cvg/noise/dim016
+catalyst-dl run -C gan_example/convergence/static/gan032.yml --logdir logs/cvg/noise/dim032
+catalyst-dl run -C gan_example/convergence/static/gan064.yml --logdir logs/cvg/noise/dim064
+catalyst-dl run -C gan_example/convergence/static/gan100.yml --logdir logs/cvg/noise/dim100
+catalyst-dl run -C gan_example/convergence/static/gan128.yml --logdir logs/cvg/noise/dim128
+catalyst-dl run -C gan_example/convergence/static/gan256.yml --logdir logs/cvg/noise/dim256

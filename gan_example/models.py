@@ -77,6 +77,8 @@ class SimpleGenerator(nn.Module):
         image_resolution=(28, 28),
         channels=1,
         conv_mode=True,
+        n_hidden=128,
+        hidden_multiplier=2
     ):
         """
 
@@ -94,12 +96,16 @@ class SimpleGenerator(nn.Module):
         if self.is_mode_conv:
             self.net = conv_generator(
                 n_in=self.noise_dim,
-                ch_out=channels
+                ch_out=channels,
+                n_hidden=n_hidden,
+                hidden_multiplier=hidden_multiplier
             )
         else:
             self.net = fc_generator(
                 n_in=self.noise_dim,
-                n_out=int(channels * np.prod(image_resolution))
+                n_out=int(channels * np.prod(image_resolution)),
+                n_hidden=n_hidden,
+                hidden_multiplier=hidden_multiplier
             )
 
     def forward(self, x):
@@ -115,7 +121,8 @@ class SimpleGenerator(nn.Module):
 
 
 class SimpleDiscriminator(nn.Module):
-    def __init__(self, image_resolution=(28, 28), channels=1, conv_mode=True):
+    def __init__(self, image_resolution=(28, 28), channels=1, conv_mode=True,
+                 n_hidden=128, hidden_multiplier=2):
         super().__init__()
         self.image_resolution = image_resolution
         self.channels = channels
@@ -124,12 +131,16 @@ class SimpleDiscriminator(nn.Module):
         if self.is_mode_conv:
             self.net = conv_discriminator(
                 n_in=channels,
-                ch_out=1
+                ch_out=1,
+                n_hidden=n_hidden,
+                hidden_multiplier=hidden_multiplier
             )
         else:
             self.net = fc_discriminator(
                 n_in=int(np.prod(image_resolution) * channels),
-                n_out=1
+                n_out=1,
+                n_hidden=n_hidden,
+                hidden_multiplier=hidden_multiplier
             )
 
     def forward(self, x):
