@@ -19,14 +19,14 @@ model_params:
   _key_value: True
   generator:
     model: SimpleGenerator
-    noise_dim: &noise_dim 16
-    conv_mode: True
-    n_hidden: 128
+    noise_dim: &noise_dim 128
+    conv_mode: False
+    n_hidden: 64
     hidden_multiplier: 2
   discriminator:
     model: SimpleDiscriminator
-    conv_mode: True
-    n_hidden: 128
+    conv_mode: False
+    n_hidden: 64
     hidden_multiplier: 2
   feature_extractor:
     model: mnist

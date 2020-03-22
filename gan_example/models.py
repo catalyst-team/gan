@@ -5,6 +5,24 @@ import torch
 import torch.nn as nn
 
 
+from catalyst.dl import registry
+
+
+@registry.Module
+class Reshape(nn.Module):
+    def __init__(self, shape=None, batch_shape=None):
+        super().__init__()
+        assert (shape is None) ^ (batch_shape is None)
+        self.shape = shape
+        self.batch_shape = batch_shape
+
+    def forward(self, x):
+        if self.shape is not None:
+            return x.reshape(x.size(0), *self.shape)
+        else:
+            return x.reshape(*self.batch_shape)
+
+
 def fc_generator(n_in, n_out=28*28, n_hidden=100, hidden_multiplier=1):
     c, k = n_hidden, hidden_multiplier
     return nn.Sequential(
@@ -32,11 +50,12 @@ def fc_discriminator(n_in=28*28, n_out=1, n_hidden=100, hidden_multiplier=1):
     )
 
 
-def conv_generator(n_in, ch_out=1, n_hidden=128, hidden_multiplier=2):
+def conv_generator(n_in, ch_out=1, n_hidden=32, hidden_multiplier=2):
     c, k = n_hidden, hidden_multiplier
     return nn.Sequential(
-        nn.ConvTranspose2d(n_in, c*k**3, 4, 1, 0),
+        nn.Linear(n_in, c*k**3 * 4*4),
         nn.ReLU(inplace=True),
+        Reshape(shape=(c*k**3, 4, 4)),
         nn.ConvTranspose2d(c*k**3, c*k**2, 3, 2, 1),
         nn.BatchNorm2d(c*k**2),
         nn.ReLU(inplace=True),
@@ -51,7 +70,7 @@ def conv_generator(n_in, ch_out=1, n_hidden=128, hidden_multiplier=2):
     )
 
 
-def conv_discriminator(n_in, ch_out=1, n_hidden=128, hidden_multiplier=2):
+def conv_discriminator(n_in, ch_out=1, n_hidden=32, hidden_multiplier=2):
     c, k = n_hidden, hidden_multiplier
     return nn.Sequential(
         nn.Conv2d(n_in, c, 4, 2, 1),
@@ -65,7 +84,8 @@ def conv_discriminator(n_in, ch_out=1, n_hidden=128, hidden_multiplier=2):
         nn.Conv2d(c * k**2, c * k**3, 4, 1, 0),
         nn.BatchNorm2d(c * k**3),
         nn.LeakyReLU(0.2, inplace=True),
-        nn.Conv2d(c * k**3, ch_out, 1, 1, 0)
+        nn.Conv2d(c * k**3, ch_out, 1, 1, 0),
+        Reshape(shape=(ch_out, ))
     )
 
 
@@ -77,7 +97,7 @@ class SimpleGenerator(nn.Module):
         image_resolution=(28, 28),
         channels=1,
         conv_mode=True,
-        n_hidden=128,
+        n_hidden=32,
         hidden_multiplier=2
     ):
         """
@@ -109,20 +129,14 @@ class SimpleGenerator(nn.Module):
             )
 
     def forward(self, x):
-        if self.is_mode_conv and x.ndim == 2:
-            x = x.reshape(*x.size(), 1, 1)
         x = self.net(x)
-        if self.is_mode_conv:
-            assert x.size()[2:] == self.image_resolution
-            assert x.size(1) == self.channels
-        else:
-            x = x.reshape(x.size(0), self.channels, *self.image_resolution)
+        x = x.reshape(x.size(0), self.channels, *self.image_resolution)
         return x
 
 
 class SimpleDiscriminator(nn.Module):
     def __init__(self, image_resolution=(28, 28), channels=1, conv_mode=True,
-                 n_hidden=128, hidden_multiplier=2):
+                 n_hidden=32, hidden_multiplier=2):
         super().__init__()
         self.image_resolution = image_resolution
         self.channels = channels
@@ -147,8 +161,6 @@ class SimpleDiscriminator(nn.Module):
         if not self.is_mode_conv:
             x = x.reshape(x.size(0), -1)
         x = self.net(x)
-        if self.is_mode_conv:
-            x = x.reshape(x.size(0), 1)
         return x
 
 
@@ -158,10 +170,18 @@ class SimpleCGenerator(SimpleGenerator):
         noise_dim=10,
         num_classes=10,
         image_resolution=(28, 28),
-        channels=1
+        channels=1,
+        conv_mode=True,
+        n_hidden=32,
+        hidden_multiplier=2
     ):
         super().__init__(
-            noise_dim + num_classes, image_resolution, channels
+            noise_dim=noise_dim + num_classes,
+            image_resolution=image_resolution,
+            channels=channels,
+            conv_mode=conv_mode,
+            n_hidden=n_hidden,
+            hidden_multiplier=hidden_multiplier
         )
         self.num_classes = num_classes
 
@@ -176,7 +196,9 @@ class SimpleCDiscriminator(nn.Module):
         num_classes=10,
         image_resolution=(28, 28),
         channels=1,
-        conv_mode=True
+        conv_mode=True,
+        n_hidden=32,
+        hidden_multiplier=2
     ):
         super().__init__()
         self.image_resolution = image_resolution
@@ -188,7 +210,9 @@ class SimpleCDiscriminator(nn.Module):
             n_emb = 64
             self.net = conv_discriminator(
                 n_in=channels,
-                ch_out=n_emb
+                ch_out=n_emb,
+                n_hidden=n_hidden,
+                hidden_multiplier=hidden_multiplier
             )
             self.classifier = nn.Sequential(
                 nn.Linear(n_emb + num_classes, 64),
@@ -198,7 +222,9 @@ class SimpleCDiscriminator(nn.Module):
         else:
             self.net = fc_discriminator(
                 n_in=int(np.prod(image_resolution) * channels + num_classes),
-                n_out=1
+                n_out=1,
+                n_hidden=n_hidden,
+                hidden_multiplier=hidden_multiplier
             )
             self.classifier = None
 

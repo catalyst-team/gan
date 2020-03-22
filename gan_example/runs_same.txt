@@ -1,0 +1,6 @@
+catalyst-dl run -C gan_example/convergence/static/gan.yml --baselogdir logs/repr/dense --seed 0
+catalyst-dl run -C gan_example/convergence/static/gan.yml --baselogdir logs/repr/dense --seed 1
+catalyst-dl run -C gan_example/convergence/static/gan.yml --baselogdir logs/repr/dense --seed 2
+catalyst-dl run -C gan_example/convergence/static/gan.yml --baselogdir logs/repr/dense --seed 3
+catalyst-dl run -C gan_example/convergence/static/gan.yml --baselogdir logs/repr/dense --seed 4
+catalyst-dl run -C gan_example/convergence/static/gan.yml --baselogdir logs/repr/dense --seed 5
