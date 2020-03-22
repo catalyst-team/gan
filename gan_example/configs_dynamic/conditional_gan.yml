@@ -27,9 +27,15 @@ model_params:
     model: SimpleCGenerator
     noise_dim: &noise_dim 16
     num_classes: &n_classes 10
+    conv_mode: True
+    n_hidden: 64
+    hidden_multiplier: 2
   discriminator:
     model: SimpleCDiscriminator
     num_classes: *n_classes
+    conv_mode: True
+    n_hidden: 64
+    hidden_multiplier: 2
   feature_extractor:
     model: mnist
     pretrained: True

@@ -4,10 +4,16 @@ runner_params:
   data_input_key: &real_data "image"
   class_input_key: &class_targets "class_targets"
   noise_input_key: &noise_input "noise"
+
   # output keys
   fake_logits_output_key: &fake_logits "fake_logits"
   real_logits_output_key: &real_logits "real_logits"
   fake_data_output_key: &fake_data "fake_image"
+
+  # condition keys (as this is conditional gan)
+  fake_condition_keys: [&class_targets_one_hot "class_targets_one_hot"]
+  real_condition_keys: ["class_targets_one_hot"]
+
   # phases
   generator_train_phase: &generator_train_phase generator_train
   discriminator_train_phase: &discriminator_train_phase discriminator_train
@@ -18,23 +24,26 @@ runner_params:
 model_params:
   _key_value: True
   generator:
-    model: SimpleGenerator
-    noise_dim: &noise_dim 128
+    model: SimpleCGenerator
+    noise_dim: &noise_dim 16
+    num_classes: &n_classes 10
     conv_mode: True
-    n_hidden: 32
+    n_hidden: 64
     hidden_multiplier: 2
   discriminator:
-    model: SimpleDiscriminator
+    model: SimpleCDiscriminator
+    num_classes: *n_classes
     conv_mode: True
-    n_hidden: 32
+    n_hidden: 64
     hidden_multiplier: 2
   feature_extractor:
     model: mnist
     pretrained: True
 
+
 args:
   expdir: "gan_example"
-  baselogdir: "./logs/gan_example/vanilla_gan/static"
+  baselogdir: "./logs/gan_example/conditional_gan/static"
 
 
 stages:
@@ -56,6 +65,10 @@ stages:
       - transform: AdditionalScalar
         value: 0.
         output_key: &fake_targets "fake_targets"
+      - transform: OneHotTargetTransform
+        num_classes: *n_classes
+        input_key: *class_targets
+        output_key: *class_targets_one_hot
 
   data_params:
     batch_size: 64
@@ -65,7 +78,7 @@ stages:
     target_key: *class_targets
 
   state_params:
-    num_epochs: 100
+    num_epochs: 10
     main_metric: "metrics/FID"
     minimize_metric: True
     batch_consistant_metrics: False
@@ -77,6 +90,7 @@ stages:
     criterion: BCEWithLogitsLoss
 
   callbacks_params:
+
     phase_manager:
       callback: PhaseManagerCallback
       # one of "all" (use all callbacks), "same" (same phases as in train)
@@ -84,6 +98,9 @@ stages:
       train_phases:
         *discriminator_train_phase: 1
         *generator_train_phase: 1
+
+    tricky_metric_manager_callback: # saves batch_metrics to prev_batch_metrics
+      callback: TrickyMetricManagerCallback
 
     loss_g:
       _wrapper: &g_train_wrapper
@@ -163,7 +180,7 @@ stages:
       callback: CheckpointCallback
 
     perceptual_path_length:
-      callback: PerceptualPathLengthCallback
+      callback: CGanPerceptualPathLengthCallback
       prefix: "metrics/PPL"
       generator_model_key: *generator_model_name
       embedder_model_key: feature_extractor
