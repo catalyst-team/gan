@@ -1,0 +1,8 @@
+noise_dim: 128
+g_n_hidden: 32
+g_hidden_multiplier: 2
+d_n_hidden: 32
+d_hidden_multiplier: 2
+
+d_steps: [1, 2, 3, 4, 5]  # GRID
+g_steps: [1, 2, 3, 4, 5]  # GRID

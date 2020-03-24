@@ -139,3 +139,7 @@ _nogit*
 # End of https://www.gitignore.io/api/visualstudiocode
 
 
+# project
+rendered
+
+
