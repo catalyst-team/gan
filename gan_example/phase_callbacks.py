@@ -83,6 +83,13 @@ class PhaseManager:
 @registry.Callback
 class SmartPhaseManagerCallback(PhaseManagerCallback):
 
+
+    def __init__(self, train_phases: "OrderedDict[str, int]" = None,
+                 valid_phases: "OrderedDict[str, int]" = None,
+                 valid_mode: str = None):
+        super().__init__(train_phases, valid_phases, valid_mode)
+        self._curr_phase_steps = 0
+
     def _get_phase_manager(
             self,
             train_phases: "OrderedDict[str, Dict]" = None,
@@ -120,3 +127,9 @@ class SmartPhaseManagerCallback(PhaseManagerCallback):
 
     def on_batch_end(self, state: _State):
         super().on_batch_end(state)
+        if state.need_backward_pass:
+            self._curr_phase_steps += 1
+            if state.phase != self.phase_manager.get_phase_name(state):
+                state.batch_metrics[f"phase_steps/{state.phase}"] = \
+                    self._curr_phase_steps
+                self._curr_phase_steps = 0

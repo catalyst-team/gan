@@ -83,12 +83,12 @@ stages:
       valid_mode: "all"
       train_phases:
         *discriminator_train_phase:
-          steps: 5
+          steps: {{ d_steps }}
           batch_metric_key: &full_acc "discriminator_metrics/full_acc"
           threshold: 0.75  # TODO: change
           greater_is_good: True
         *generator_train_phase:
-          steps: 5
+          steps: {{ g_steps }}
           batch_metric_key: &fake_acc "discriminator_metrics/fake_acc01"
           threshold: 0.6  # TODO: change
           greater_is_good: False
