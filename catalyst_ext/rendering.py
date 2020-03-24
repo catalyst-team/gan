@@ -53,8 +53,10 @@ def main(in_template, in_params, out_dir):
             if len(v) > 1:
                 grid_kv[k] = v
                 num_rendered_configs *= len(v)
+            elif len(v) == 1:
+                params_kv[k] = v[0]
             else:
-                params_kv[k] = v
+                raise NotImplementedError("What to do with [] - empty list?")
         elif isinstance(v, dict):
             assert v.pop("_value", False)
             assert "value" in v

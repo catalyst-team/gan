@@ -18,8 +18,12 @@ class Phase:
     def __init__(self, name: str = None, steps: int = None,
                  batch_metric_key: str = None,
                  threshold: float = None,
-                 greater_is_good: bool = None):
+                 alpha: float = 1.0,
+                 greater_is_good: bool = None,
+                 do_abs_metric: bool = True):
         self.steps = int(steps) if steps is not None else None
+        assert 1e-9 < alpha <= 1
+        self.alpha = alpha
         self.curr_step = 0
         self.name = name
 
@@ -27,11 +31,23 @@ class Phase:
         self.threshold = threshold
         self.greater_is_good = greater_is_good
 
+        self.do_abs_metric = do_abs_metric
+
+        self._prev_metric_value = None
+
     def step(self, state: _State):
         metric_value = state.prev_batch_metrics.get(self.batch_metric_key, None)
         if metric_value is None:
             return False
-        metric_value = abs(metric_value)  # todo: remove this hack
+        if self.do_abs_metric:
+            metric_value = abs(metric_value)
+        if self._prev_metric_value is not None:
+            metric_value = (
+                self._prev_metric_value * (1 - self.alpha)
+                + metric_value * self.alpha
+            )
+        self._prev_metric_value = metric_value
+
         is_greater = metric_value > self.threshold
         do_step = (not is_greater) and (not self.greater_is_good)
         do_step = do_step or (is_greater and self.greater_is_good)

@@ -1,0 +1,8 @@
+d_steps: 1
+g_steps: 1
+
+d_alpha: 1.0
+g_alpha: 1.0
+
+d_threshold: 0.75
+g_threshold: 0.6

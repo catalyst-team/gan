@@ -84,13 +84,15 @@ stages:
       train_phases:
         *discriminator_train_phase:
           steps: {{ d_steps }}
+          alpha: {{ d_alpha }}
           batch_metric_key: &full_acc "discriminator_metrics/full_acc"
-          threshold: 0.75  # TODO: change
+          threshold: {{ d_threshold }}
           greater_is_good: True
         *generator_train_phase:
           steps: {{ g_steps }}
+          alpha: {{ g_alpha }}
           batch_metric_key: &fake_acc "discriminator_metrics/fake_acc01"
-          threshold: 0.6  # TODO: change
+          threshold: {{ g_threshold }}
           greater_is_good: False
 
     tricky_metric_manager_callback: # saves batch_metrics to prev_batch_metrics
