@@ -156,11 +156,9 @@ stages:
       real_validity_output_key: *real_validity
       fake_validity_output_key: *fake_validity
 
-    visualizer:
-      callback: VisualizationCallback
-      output_keys: *fake_data
-      num_rows: 5
-      max_images: 25
+    viz:
+      callback: ConstNoiseVisualizerCalback
+      noise_dim: *noise_dim
 
     saver:
       callback: CheckpointCallback

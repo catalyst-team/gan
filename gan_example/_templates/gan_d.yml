@@ -65,7 +65,7 @@ stages:
     target_key: *class_targets
 
   state_params:
-    num_epochs: 100
+    num_epochs: 10
     main_metric: "metrics/FID"
     minimize_metric: True
     batch_consistant_metrics: False
@@ -164,11 +164,9 @@ stages:
       optimizer_key: discriminator
       loss_key: loss_d
 
-    visualizer:
-      callback: VisualizationCallback
-      output_keys: *fake_data
-      num_rows: 5
-      max_images: 25
+    viz:
+      callback: ConstNoiseVisualizerCalback
+      noise_dim: *noise_dim
 
     saver:
       callback: CheckpointCallback

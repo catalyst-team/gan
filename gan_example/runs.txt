@@ -1,29 +1,29 @@
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_1-g_steps_1.yml --logdir logs/exp/gan/static/g1d1
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_2-g_steps_1.yml --logdir logs/exp/gan/static/g2d1
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_3-g_steps_1.yml --logdir logs/exp/gan/static/g3d1
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_4-g_steps_1.yml --logdir logs/exp/gan/static/g4d1
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_5-g_steps_1.yml --logdir logs/exp/gan/static/g5d1
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_1-g_steps_1.yml --logdir logs/exp/cgan/static/g1d1
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_2-g_steps_1.yml --logdir logs/exp/cgan/static/g2d1
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_3-g_steps_1.yml --logdir logs/exp/cgan/static/g3d1
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_4-g_steps_1.yml --logdir logs/exp/cgan/static/g4d1
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_5-g_steps_1.yml --logdir logs/exp/cgan/static/g5d1
 
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_1-g_steps_2.yml --logdir logs/exp/gan/static/g1d2
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_2-g_steps_2.yml --logdir logs/exp/gan/static/g2d2
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_3-g_steps_2.yml --logdir logs/exp/gan/static/g3d2
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_4-g_steps_2.yml --logdir logs/exp/gan/static/g4d2
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_5-g_steps_2.yml --logdir logs/exp/gan/static/g5d2
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_1-g_steps_2.yml --logdir logs/exp/cgan/static/g1d2
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_2-g_steps_2.yml --logdir logs/exp/cgan/static/g2d2
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_3-g_steps_2.yml --logdir logs/exp/cgan/static/g3d2
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_4-g_steps_2.yml --logdir logs/exp/cgan/static/g4d2
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_5-g_steps_2.yml --logdir logs/exp/cgan/static/g5d2
 
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_1-g_steps_3.yml --logdir logs/exp/gan/static/g1d3
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_2-g_steps_3.yml --logdir logs/exp/gan/static/g2d3
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_3-g_steps_3.yml --logdir logs/exp/gan/static/g3d3
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_4-g_steps_3.yml --logdir logs/exp/gan/static/g4d3
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_5-g_steps_3.yml --logdir logs/exp/gan/static/g5d3
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_1-g_steps_3.yml --logdir logs/exp/cgan/static/g1d3
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_2-g_steps_3.yml --logdir logs/exp/cgan/static/g2d3
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_3-g_steps_3.yml --logdir logs/exp/cgan/static/g3d3
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_4-g_steps_3.yml --logdir logs/exp/cgan/static/g4d3
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_5-g_steps_3.yml --logdir logs/exp/cgan/static/g5d3
 
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_1-g_steps_4.yml --logdir logs/exp/gan/static/g1d4
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_2-g_steps_4.yml --logdir logs/exp/gan/static/g2d4
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_3-g_steps_4.yml --logdir logs/exp/gan/static/g3d4
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_4-g_steps_4.yml --logdir logs/exp/gan/static/g4d4
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_5-g_steps_4.yml --logdir logs/exp/gan/static/g5d4
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_1-g_steps_4.yml --logdir logs/exp/cgan/static/g1d4
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_2-g_steps_4.yml --logdir logs/exp/cgan/static/g2d4
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_3-g_steps_4.yml --logdir logs/exp/cgan/static/g3d4
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_4-g_steps_4.yml --logdir logs/exp/cgan/static/g4d4
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_5-g_steps_4.yml --logdir logs/exp/cgan/static/g5d4
 
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_1-g_steps_5.yml --logdir logs/exp/gan/static/g1d5
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_2-g_steps_5.yml --logdir logs/exp/gan/static/g2d5
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_3-g_steps_5.yml --logdir logs/exp/gan/static/g3d5
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_4-g_steps_5.yml --logdir logs/exp/gan/static/g4d5
-catalyst-dl run -C gan_example/rendered/static/gan/config_d_steps_5-g_steps_5.yml --logdir logs/exp/gan/static/g5d5
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_1-g_steps_5.yml --logdir logs/exp/cgan/static/g1d5
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_2-g_steps_5.yml --logdir logs/exp/cgan/static/g2d5
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_3-g_steps_5.yml --logdir logs/exp/cgan/static/g3d5
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_4-g_steps_5.yml --logdir logs/exp/cgan/static/g4d5
+catalyst-dl run -C gan_example/rendered/static/cgan/config_d_steps_5-g_steps_5.yml --logdir logs/exp/cgan/static/g5d5

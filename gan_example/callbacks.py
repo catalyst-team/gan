@@ -134,6 +134,52 @@ class VisualizationCallback(Callback):
             self.visualize(state)
 
 
+class ConstNoiseVisualizerCalback(Callback):
+    TENSORBOARD_LOGGER_KEY = "_tensorboard"
+
+    def __init__(self, noise_dim, visualization_key="fixed_noise",
+                 rows=5, cols=5, n_classes=None):
+        super().__init__(order=CallbackOrder.Metric)
+        self.visualization_key = visualization_key
+        self.rows = rows
+        # normalization from [-1, 1] to [0, 1] (the latter is valid for tb)
+        self.denorm = lambda x: x / 2 + .5
+
+        self.noise = torch.normal(0, 1, size=(rows * cols, noise_dim))
+        self.n_classes = n_classes
+        if n_classes is None:
+            self.generator_inputs = (self.noise, )
+        else:
+            classes = torch.arange(rows * cols) % n_classes
+            one_hot_classes = torch.zeros((rows * cols, n_classes))
+            one_hot_classes[torch.arange(rows*cols), classes] = 1
+            self.generator_inputs = (self.noise, one_hot_classes)
+
+    def on_epoch_end(self, state: "_State"):
+        if not state.need_backward_pass:
+            inputs = (tensor.to(state.device) for tensor in self.generator_inputs)
+            model = state.model["generator"]
+            outputs = model(*inputs)
+            image = torchvision.utils.make_grid(
+                self.denorm(outputs), nrow=self.rows
+            )
+            tb_logger = self._get_tensorboard_logger(state)
+            tb_logger.add_image(self.visualization_key, image,
+                                global_step=state.global_step)
+
+    @staticmethod
+    def _get_tensorboard_logger(state: State) -> SummaryWriter:
+        tb_key = VisualizationCallback.TENSORBOARD_LOGGER_KEY
+        if (
+                tb_key in state.callbacks
+                and state.loader_name in state.callbacks[tb_key].loggers
+        ):
+            return state.callbacks[tb_key].loggers[state.loader_name]
+        raise RuntimeError(
+            f"Cannot find Tensorboard logger for loader {state.loader_name}"
+        )
+
+
 class TrickyMetricManagerCallback(MetricManagerCallback):
 
     def on_batch_start(self, state: _State):
@@ -141,4 +187,5 @@ class TrickyMetricManagerCallback(MetricManagerCallback):
         super().on_batch_start(state)
 
 
-__all__ = ["VisualizationCallback", "TrickyMetricManagerCallback"]
+__all__ = ["VisualizationCallback", "TrickyMetricManagerCallback",
+           "ConstNoiseVisualizerCalback"]

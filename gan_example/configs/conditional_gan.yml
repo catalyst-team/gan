@@ -86,19 +86,6 @@ stages:
         *discriminator_train_phase: 1
         *generator_train_phase: 1
 
-#    prepare_batch_noise:
-#      callback: AddBatchNoiseCallback
-#      noise_shape: *noise_dim
-#
-#    prepare_targets_onehot:  TODO
-#      callback: OneHotTransformCallback
-#      num_classes: *n_classes
-#      target_key: "class_targets"
-#      one_hot_target_key: "class_targets_one_hot"
-#
-#    prepare_batch_targets:
-#      callback: AddRealFakeTargetsCallback
-
     loss_g:
       _wrapper: &g_train_wrapper
         callback: PhaseBatchWrapperCallback
@@ -140,11 +127,10 @@ stages:
       optimizer_key: discriminator
       loss_key: loss_d
 
-    visualizer:
-      callback: VisualizationCallback
-      output_keys: *fake_data
-      num_rows: 5
-      max_images: 25
+    viz:
+      callback: ConstNoiseVisualizerCalback
+      noise_dim: *noise_dim
+      n_classes: *n_classes
 
     saver:
       callback: CheckpointCallback
