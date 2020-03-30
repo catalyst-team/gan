@@ -4,7 +4,7 @@ from catalyst.dl import registry
 # from catalyst.dl.runner import GanRunner as Runner
 from .runners import FullGanRunner as Runner
 from . import callbacks, models, transforms
-from .experiment import MnistGanExperiment as Experiment
+from .experiment import Experiment as Experiment
 from .phase_callbacks import SmartPhaseManagerCallback
 
 #

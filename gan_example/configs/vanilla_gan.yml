@@ -53,6 +53,14 @@ stages:
     batch_size: 64
     num_workers: 0
 
+    datasets:
+      train:
+        dataset: MNIST
+        train: True
+      valid:
+        dataset: MNIST
+        train: False
+
     image_key: *real_data
     target_key: *class_targets
 

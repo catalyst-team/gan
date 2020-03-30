@@ -2,6 +2,13 @@
 from .callbacks import MemoryMetricCallback, MemoryAccumulatorCallback, \
     MemoryFeatureExtractorCallback
 from .models.mnist import mnist
+from .datasets import DATASETS, Dataset
 
-__all__ = ["MemoryMetricCallback", "MemoryAccumulatorCallback",
-           "MemoryFeatureExtractorCallback"]
+__all__ = [
+    "MemoryMetricCallback",
+    "MemoryAccumulatorCallback",
+    "MemoryFeatureExtractorCallback",
+
+    "DATASETS",
+    "Dataset"
+]
