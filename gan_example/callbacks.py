@@ -138,7 +138,7 @@ class ConstNoiseVisualizerCalback(Callback):
     TENSORBOARD_LOGGER_KEY = "_tensorboard"
 
     def __init__(self, noise_dim, visualization_key="fixed_noise",
-                 rows=5, cols=5, n_classes=None):
+                 rows=5, cols=5, n_classes=None, only_valid=True):
         super().__init__(order=CallbackOrder.Metric)
         self.visualization_key = visualization_key
         self.rows = rows
@@ -147,6 +147,7 @@ class ConstNoiseVisualizerCalback(Callback):
 
         self.noise = torch.normal(0, 1, size=(rows * cols, noise_dim))
         self.n_classes = n_classes
+        self.only_valid = only_valid
         if n_classes is None:
             self.generator_inputs = (self.noise, )
         else:
@@ -156,7 +157,7 @@ class ConstNoiseVisualizerCalback(Callback):
             self.generator_inputs = (self.noise, one_hot_classes)
 
     def on_epoch_end(self, state: "_State"):
-        if not state.need_backward_pass:
+        if not state.need_backward_pass or not self.only_valid:
             inputs = (tensor.to(state.device) for tensor in self.generator_inputs)
             model = state.model["generator"]
             outputs = model(*inputs)
