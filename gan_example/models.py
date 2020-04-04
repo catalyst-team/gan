@@ -335,8 +335,78 @@ class ScitatorCDiscriminator(nn.Module):
         return x
 
 
+class DCGanGenerator(nn.Module):
+    def __init__(self, noise_dim=100,
+                 image_resolution=(64, 64),
+                 channels=3,
+                 hidden_dim=64,
+                 ):
+        super().__init__()
+        assert tuple(image_resolution) == (64, 64)
+        self.main = nn.Sequential(
+            Reshape(shape=(noise_dim, 1, 1)),
+            # input is Z, going into a convolution
+            nn.ConvTranspose2d(noise_dim, hidden_dim * 8, 4, 1, 0, bias=False),
+            nn.BatchNorm2d(hidden_dim * 8),
+            nn.ReLU(True),
+            # state size. (ngf*8) x 4 x 4
+            nn.ConvTranspose2d(hidden_dim * 8, hidden_dim * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_dim * 4),
+            nn.ReLU(True),
+            # state size. (ngf*4) x 8 x 8
+            nn.ConvTranspose2d(hidden_dim * 4, hidden_dim * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_dim * 2),
+            nn.ReLU(True),
+            # state size. (ngf*2) x 16 x 16
+            nn.ConvTranspose2d(hidden_dim * 2, hidden_dim, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(hidden_dim),
+            nn.ReLU(True),
+            # state size. (ngf) x 32 x 32
+            nn.ConvTranspose2d(hidden_dim, channels, 4, 2, 1, bias=False),
+            nn.Tanh()
+            # state size. (nc) x 64 x 64
+        )
+
+    def forward(self, x):
+        return self.main(x)
+
+
+class DCGanDiscriminator(nn.Module):
+    def __init__(self, image_resolution=(64, 64),
+                 channels=3,
+                 hidden_dim=64):
+        super().__init__()
+        assert tuple(image_resolution) == (64, 64)
+        ndf = hidden_dim
+        self.main = nn.Sequential(
+            # input is (nc) x 64 x 64
+            nn.Conv2d(channels, ndf, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf) x 32 x 32
+            nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*2) x 16 x 16
+            nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*4) x 8 x 8
+            nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(ndf * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*8) x 4 x 4
+            nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
+            # nn.Sigmoid()
+            Reshape(shape=(1,))
+        )
+
+    def forward(self, x):
+        return self.main(x)
+
+
 __all__ = [
     "SimpleGenerator", "SimpleDiscriminator", "SimpleCGenerator",
     "SimpleCDiscriminator", "ScitatorGenerator", "ScitatorDiscriminator",
-    "ScitatorCGenerator", "ScitatorCDiscriminator"
+    "ScitatorCGenerator", "ScitatorCDiscriminator",
+    "DCGanDiscriminator", "DCGanGenerator"
 ]

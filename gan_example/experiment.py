@@ -1,7 +1,20 @@
 from collections import OrderedDict
 
+from torch import nn
+
 from catalyst.dl import ConfigExperiment
+from catalyst.dl.registry import MODELS
 from catalyst_ext import DATASETS
+
+
+# custom weights initialization called on netG and netD
+def dcgan_weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 
 # data loaders & transforms
@@ -31,3 +44,20 @@ class Experiment(ConfigExperiment):
             )
 
         return datasets_
+
+    @staticmethod
+    def _get_model(**params):
+        key_value_flag = params.pop("_key_value", False)
+        # todo registry init
+        dc_init_flag = params.pop("_dcgan_initialize", False)
+
+        if key_value_flag:
+            model = {}
+            for key, params_ in params.items():
+                model[key] = Experiment._get_model(**params_)
+            model = nn.ModuleDict(model)
+        else:
+            model = MODELS.get_from_params(**params)
+        if dc_init_flag:
+            model.apply(dcgan_weights_init)
+        return model
