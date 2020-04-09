@@ -2,11 +2,10 @@
 # isort: skip_file
 import torch
 import torchvision.utils
-from catalyst.core import _State
 
 from catalyst.dl import Callback, CallbackOrder, State
 from catalyst.dl.callbacks import MetricManagerCallback, PhaseManagerCallback
-from catalyst.utils.tools.tensorboard import SummaryWriter
+from catalyst.contrib.utils.tools.tensorboard import SummaryWriter
 
 
 class VisualizationCallback(Callback):
@@ -85,10 +84,10 @@ class VisualizationCallback(Callback):
 
     def compute_visualizations(self, state):
         input_tensors = [
-            state.input[input_key] for input_key in self.input_keys
+            state.batch_in[input_key] for input_key in self.input_keys
         ]
         output_tensors = [
-            state.output[output_key] for output_key in self.output_keys
+            state.batch_out[output_key] for output_key in self.output_keys
         ]
         visualizations = dict()
         if self.concat_images:
@@ -156,8 +155,8 @@ class ConstNoiseVisualizerCalback(Callback):
             one_hot_classes[torch.arange(rows*cols), classes] = 1
             self.generator_inputs = (self.noise, one_hot_classes)
 
-    def on_epoch_end(self, state: "_State"):
-        if not state.need_backward_pass or not self.only_valid:
+    def on_epoch_end(self, state: "State"):
+        if not state.is_train_loader or not self.only_valid:
             inputs = (tensor.to(state.device) for tensor in self.generator_inputs)
             model = state.model["generator"]
             outputs = model(*inputs)
@@ -183,7 +182,7 @@ class ConstNoiseVisualizerCalback(Callback):
 
 class TrickyMetricManagerCallback(MetricManagerCallback):
 
-    def on_batch_start(self, state: _State):
+    def on_batch_start(self, state: State):
         state.prev_batch_metrics = state.batch_metrics
         super().on_batch_start(state)
 

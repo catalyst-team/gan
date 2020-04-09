@@ -2,7 +2,7 @@ import copy
 from typing import Dict, List  # isort:skip
 from collections import OrderedDict
 
-from catalyst.core import _State, Callback, CallbackNode, CallbackOrder
+from catalyst.core import State
 from catalyst.dl.callbacks import PhaseManagerCallback
 from catalyst.dl import registry
 
@@ -35,7 +35,7 @@ class Phase:
 
         self._prev_metric_value = None
 
-    def step(self, state: _State):
+    def step(self, state: State):
         metric_value = state.prev_batch_metrics.get(self.batch_metric_key, None)
         if metric_value is None:
             return False
@@ -75,9 +75,9 @@ class PhaseManager:
         self.train_index = 0
         self.valid_index = 0
 
-    def step(self, state: _State, step_size: int = 1):
+    def step(self, state: State, step_size: int = 1):
         assert step_size == 1
-        if state.need_backward_pass:
+        if state.is_train_loader:
             if len(self.train_phases) > 1:
                 need_change_phase = self.train_phases[self.train_index].step(state)
                 if need_change_phase:
@@ -90,15 +90,14 @@ class PhaseManager:
                     self.valid_index = \
                         (self.valid_index + 1) % len(self.valid_phases)
 
-    def get_phase_name(self, state: _State):
-        if state.need_backward_pass:
+    def get_phase_name(self, state: State):
+        if state.is_train_loader:
             return self.train_phases[self.train_index].name
         return self.valid_phases[self.valid_index].name
 
 
 @registry.Callback
 class SmartPhaseManagerCallback(PhaseManagerCallback):
-
 
     def __init__(self, train_phases: "OrderedDict[str, int]" = None,
                  valid_phases: "OrderedDict[str, int]" = None,
@@ -138,12 +137,12 @@ class SmartPhaseManagerCallback(PhaseManagerCallback):
             train_phases=train_phases, valid_phases=valid_phases
         )
 
-    def on_batch_start(self, state: _State):
+    def on_batch_start(self, state: State):
         super().on_batch_start(state)
 
-    def on_batch_end(self, state: _State):
+    def on_batch_end(self, state: State):
         super().on_batch_end(state)
-        if state.need_backward_pass:
+        if state.is_train_loader:
             self._curr_phase_steps += 1
             if state.phase != self.phase_manager.get_phase_name(state):
                 state.batch_metrics[f"phase_steps/{state.phase}"] = \

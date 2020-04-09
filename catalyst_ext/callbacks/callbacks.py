@@ -5,7 +5,7 @@ from typing import Dict, List, Union, Iterable, Optional
 import numpy as np
 import torch
 import torch.nn.functional as F
-from catalyst.core import _State, Callback, CallbackOrder, MetricCallback
+from catalyst.core import State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
 from catalyst.utils import get_dictkey_auto_fn
 
@@ -15,7 +15,7 @@ from catalyst_ext import utils
 logger = logging.getLogger(__name__)
 
 
-def _stack_memory_lists_to_tensors(state: _State):
+def _stack_memory_lists_to_tensors(state: State):
     for key, values_list in state.memory.items():
         assert len(values_list) > 0
         if isinstance(values_list, (list, tuple)):
@@ -45,22 +45,22 @@ class MemoryMetricCallback(MetricCallback):
                          multiplier=multiplier,
                          **metric_kwargs)
 
-    def _compute_metric_value(self, state: _State):
+    def _compute_metric_value(self, state: State):
         output = self._get_memory(state.memory, self.memory_key)
 
         metric = self.metric_fn(output, **self.metrics_kwargs)
         return metric
 
-    def _compute_metric_key_value(self, state: _State):
+    def _compute_metric_key_value(self, state: State):
         output = self._get_memory(state.memory, self.memory_key)
 
         metric = self.metric_fn(**output, **self.metrics_kwargs)
         return metric
 
-    def on_batch_end(self, state: _State):
+    def on_batch_end(self, state: State):
         pass  # do nothing (override parent method which does something)
 
-    def on_loader_end(self, state: _State):
+    def on_loader_end(self, state: State):
         with torch.no_grad():
             metric = self._compute_metric(state) * self.multiplier
             if isinstance(metric, torch.Tensor):
@@ -79,7 +79,7 @@ class MemoryMultiMetricCallback(MemoryMetricCallback):
                          **metric_kwargs)
         self.suffixes = suffixes
 
-    def on_loader_end(self, state: _State):
+    def on_loader_end(self, state: State):
         with torch.no_grad():
             metrics_ = self._compute_metric(state)
             if isinstance(metrics_, torch.Tensor):
@@ -120,28 +120,28 @@ class MemoryAccumulatorCallback(Callback):
 
         self._start_idx = None
 
-    def on_loader_start(self, state: _State):
+    def on_loader_start(self, state: State):
         state.memory = defaultdict(list)  # empty memory
 
         # self._start_idx[key] - index in state.memory[key]
         # where to update memory next
         self._start_idx = defaultdict(int)  # default value 0
 
-    def on_loader_end(self, state: _State):
+    def on_loader_end(self, state: State):
         _stack_memory_lists_to_tensors(state)
 
-    def on_batch_end(self, state: _State):
+    def on_batch_end(self, state: State):
         for input_key, memory_key in self.input_key.items():
             self.add_to_memory(
                 memory=state.memory[memory_key],
-                items=state.input[input_key],
+                items=state.batch_in[input_key],
                 memory_key=memory_key,
                 max_memory_size=self.memory_size
             )
         for output_key, memory_key in self.output_key.items():
             self.add_to_memory(
                 memory=state.memory[memory_key],
-                items=state.output[output_key],
+                items=state.batch_out[output_key],
                 memory_key=memory_key,
                 max_memory_size=self.memory_size
             )
@@ -231,7 +231,7 @@ class MemoryFeatureExtractorCallback(Callback):
 
         self._extracted_features = {}
 
-    def on_loader_end(self, state: _State):
+    def on_loader_end(self, state: State):
         # st.memory[out_key[s]] = model(st.memory[memory_key])
         # 1. register hooks
         model = state.model[self.model_key]
@@ -356,7 +356,7 @@ class MemoryTransformCallback(Callback):  # todo: generalize
         self.transform_out_key = transform_out_key
         self.suffixes = suffixes or []
 
-    def on_loader_end(self, state: _State):
+    def on_loader_end(self, state: State):
         input = self._get_input_key(state.memory, self.transform_in_key)
         output = self.transform_fn(**input)
         if isinstance(output, torch.Tensor):
@@ -404,7 +404,7 @@ class PerceptualPathLengthCallback(MetricCallback):
             noise_shape = [noise_shape, ]
         self.noise_shape = tuple(noise_shape)
 
-    def _compute_metric(self, state: _State):
+    def _compute_metric(self, state: State):
         generator = state.model[self.generator_model_key]
         embedder = state.model[self.embedder_model_key]
 
@@ -454,10 +454,10 @@ class PerceptualPathLengthCallback(MetricCallback):
     def _get_generator_condition_inputs(self, batch_size, device=None):
         return ()
 
-    def on_batch_end(self, state: _State):
+    def on_batch_end(self, state: State):
         pass  # do nothing
 
-    def on_loader_end(self, state: _State):
+    def on_loader_end(self, state: State):
         with torch.no_grad():
             metric = self._compute_metric(state) * self.multiplier
         state.loader_metrics[self.prefix] = metric
