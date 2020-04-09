@@ -1,0 +1,48 @@
+common_tmp:
+  image_side: &image_side 64
+  noise_dim: &noise_dim 128
+
+runner_params:
+  # input keys
+  # Note: for albumentations transforms we have to have key "image" =(
+  data_input_key: &real_data "image"
+  noise_input_key: &noise_input "noise"
+
+
+stages:
+
+  transform_params:
+    transform: A.Compose
+    transforms:
+#      - transform: TensorToNumpy
+      - transform: PillowToNumpy
+        image_key: *real_data
+      - transform: A.Resize
+        height: *image_side
+        width: *image_side
+      - transform: A.Normalize
+        mean: [0.5, 0.5, 0.5]
+        std: [0.5, 0.5, 0.5]
+      - transform: A.ToTensorV2
+      - transform: AdditionalNoiseTensor
+        tensor_size: [*noise_dim]
+        output_key: *noise_input
+
+  data_params:
+    batch_size: 128
+
+    datasets:
+      train:
+        dataset: torchvision.keyvalue.CIFAR10
+        root: ./data/CIFAR10
+#        dataset: torchvision.keyvalue.LSUN  # todo: download
+#        root: ./data/LSUN
+#        dataset: torchvision.keyvalue.FashionMNIST  # todo: gray image input
+#        root: ./data/FashionMNIST
+#        dataset: torchvision.keyvalue.MNIST  # todo: gray image input
+#        root: ./data/MNIST
+
+#        dataset: torchvision.keyvalue.STL10
+#        root: ./data/STL10
+        download: True
+    image_key: *real_data

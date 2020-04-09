@@ -1,15 +1,13 @@
 # flake8: noqa
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import numpy as np
 
 from albumentations.core.transforms_interface import ImageOnlyTransform
 import torch
 
-from catalyst.dl import registry
 
-
-class AsImage(ImageOnlyTransform):
+class TensorToNumpy(ImageOnlyTransform):
     def __init__(self, always_apply=False, p=1.0):
         super().__init__(always_apply, p)
 
@@ -20,6 +18,21 @@ class AsImage(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return []
+
+
+class PillowToNumpy:
+    def __init__(self, image_key: Union[str, List[str]] = "image"):
+        if isinstance(image_key, str):
+            image_key = [image_key]
+        self.image_key = image_key
+
+    def __call__(self, force_apply=True, **data):
+        for key in self.image_key:
+            img = np.array(data[key])
+            if img.ndim == 2:
+                img = np.stack([img] * 3, axis=-1)
+            data[key] = img
+        return data
 
 
 class AdditionalValue:
@@ -73,11 +86,3 @@ class OneHotTargetTransform:
         dict_[self.output_key] = target
 
         return dict_
-
-
-registry.Transform(AsImage)
-
-registry.Transform(AdditionalNoiseTensor)
-registry.Transform(AdditionalScalar)
-
-registry.Transform(OneHotTargetTransform)

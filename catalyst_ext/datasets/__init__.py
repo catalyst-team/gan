@@ -1,1 +1,1 @@
-from .datasets import MNIST, ImageOnlyDataset
+from .datasets import ImageOnlyDataset
