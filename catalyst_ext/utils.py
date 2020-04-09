@@ -2,8 +2,7 @@ from typing import Dict, Union
 
 import torch
 
-from .batch_transforms import BATCH_TRANSFORMS
-from .metrics import METRICS
+from catalyst_ext.registry import BATCH_TRANSFORMS, METRICS, DATASETS
 
 
 # config parsing
@@ -25,6 +24,15 @@ def get_batch_transform(params: Union[str, Dict[str, str]]):
         raise NotImplementedError()
     transform_fn = BATCH_TRANSFORMS.get_from_params(**params)
     return transform_fn
+
+
+def get_dataset(**params):
+    if isinstance(params, str):
+        params = {"name": params}
+    if not isinstance(params, dict):
+        raise NotImplementedError()
+    dataset = DATASETS.get_from_params(**params)
+    return dataset
 
 
 # torch models

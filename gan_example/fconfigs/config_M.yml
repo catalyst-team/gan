@@ -1,0 +1,12 @@
+common_tmp:
+  noise_dim: &noise_dim 128
+
+model_params:
+  _key_value: True
+  generator:
+    model: tm.SNGANGenerator64
+    nz: *noise_dim
+    ngf: 512  # TODO: increase to 1024
+  discriminator:
+    model: tm.SNGANDiscriminator64
+    ndf: 512  # TODO: increase to 1024

@@ -1,10 +1,5 @@
 import torch
 
-from catalyst.dl import registry
-
-BATCH_TRANSFORMS = registry.Registry("batch_transform")
-BatchTransform = BATCH_TRANSFORMS.add
-
 
 def distance(X, Y, kind='l2'):
     if kind != 'l2':
@@ -32,7 +27,6 @@ def real_fake_distances(X_real, X_fake, kind='l2'):
     return D_rr, D_rf, D_ff
 
 
-@BatchTransform
 class BaseBatchTransform:
     def __init__(self, transform_fn, **transform_kwargs):
         self.transform_fn = transform_fn
@@ -42,13 +36,11 @@ class BaseBatchTransform:
         return self.transform_fn(*args, **kwargs, **self.transform_kwargs)
 
 
-@BatchTransform
 class DistanceBatchTransform(BaseBatchTransform):
     def __init__(self, **transform_kwargs):
         super().__init__(transform_fn=distance, **transform_kwargs)
 
 
-@BatchTransform
 class RealFakeDistanceBatchTransform(BaseBatchTransform):
     def __init__(self, **transform_kwargs):
         super().__init__(transform_fn=real_fake_distances, **transform_kwargs)

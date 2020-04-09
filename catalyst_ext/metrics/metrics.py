@@ -6,11 +6,6 @@ import torch
 import numpy as np
 import scipy.linalg
 
-from catalyst.dl import registry
-
-METRICS = registry.Registry("metric")
-Metric = METRICS.add
-
 
 def inception_score(samples, eps=1e-20):
     X = samples
@@ -120,7 +115,6 @@ def knn_scores(D_XX, D_XY, D_YY, k=1):
     return acc.item(), acc_real.item(), acc_fake.item()
 
 
-@Metric
 class MetricModule:
     def __init__(self, metric_fn, **metric_kwargs):
         self.metric_fn = metric_fn
@@ -130,25 +124,21 @@ class MetricModule:
         return self.metric_fn(*args, **kwargs, **self.metric_kwargs)
 
 
-@Metric
 class FrechetInceptionDistance(MetricModule):
     def __init__(self, **metric_kwargs):
         super().__init__(metric_fn=frechet_inception_distance, **metric_kwargs)
 
 
-@Metric
 class InceptionScore(MetricModule):
     def __init__(self, **metric_kwargs):
         super().__init__(metric_fn=inception_score, **metric_kwargs)
 
 
-@Metric
 class ModeScore(MetricModule):
     def __init__(self, **metric_kwargs):
         super().__init__(metric_fn=mode_score, **metric_kwargs)
 
 
-@Metric
 class KnnScores(MetricModule):
     def __init__(self, **metric_kwargs):
         super().__init__(metric_fn=knn_scores, **metric_kwargs)

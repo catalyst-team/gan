@@ -4,7 +4,7 @@ from torch import nn
 
 from catalyst.dl import ConfigExperiment
 from catalyst.dl.registry import MODELS
-from catalyst_ext import DATASETS
+from catalyst_ext.utils import get_dataset
 
 
 # custom weights initialization called on netG and netD
@@ -38,7 +38,7 @@ class Experiment(ConfigExperiment):
 
         for dataset_name, dataset_params in datasets.items():
             transform = self.get_transforms(stage=stage, dataset=dataset_name)
-            datasets_[dataset_name] = DATASETS.get_from_params(
+            datasets_[dataset_name] = get_dataset(
                 transform=transform,
                 **dataset_params_shared, **dataset_params
             )

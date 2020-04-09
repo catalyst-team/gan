@@ -1,19 +1,10 @@
-"""
-Custom datasets
-"""
 import os
 
 import torch.utils.data
 import torchvision
 import cv2
 
-from catalyst.dl import registry
 
-DATASETS = registry.Registry("dataset")
-Dataset = DATASETS.add
-
-
-@Dataset
 class MNIST(torchvision.datasets.MNIST):
     """
     MNIST Dataset with key_value __get_item__ output
@@ -56,7 +47,6 @@ class MNIST(torchvision.datasets.MNIST):
         return dict_
 
 
-@Dataset
 class ImageOnlyDataset(torch.utils.data.Dataset):
 
     def __init__(self, root_dir, transform=None,
