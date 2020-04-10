@@ -1,0 +1,16 @@
+common_tmp:
+  noise_dim: &noise_dim 128 # TODO: 100 is proven to be working well
+
+model_params:
+  _key_value: True
+  generator:
+    _dcgan_initialize: True
+    model: DCGanGenerator
+    noise_dim: *noise_dim
+    image_resolution: [64, 64]
+    channels: 3
+  discriminator:
+    _dcgan_initialize: True
+    model: DCGanDiscriminator
+    image_resolution: [64, 64]
+    channels: 3

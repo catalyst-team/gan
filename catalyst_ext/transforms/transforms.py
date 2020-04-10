@@ -21,16 +21,20 @@ class TensorToNumpy(ImageOnlyTransform):
 
 
 class PillowToNumpy:
-    def __init__(self, image_key: Union[str, List[str]] = "image"):
+    def __init__(self, image_key: Union[str, List[str]] = "image",
+                 channels: int = 3):
         if isinstance(image_key, str):
             image_key = [image_key]
         self.image_key = image_key
+        self.channels = channels
 
     def __call__(self, force_apply=True, **data):
         for key in self.image_key:
             img = np.array(data[key])
-            if img.ndim == 2:
-                img = np.stack([img] * 3, axis=-1)
+            if img.ndim == 2 and self.channels > 1:
+                img = np.stack([img] * self.channels, axis=-1)
+            elif img.ndim == 2:
+                img = np.expand_dims(img, axis=-1)
             data[key] = img
         return data
 

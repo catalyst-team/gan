@@ -1,0 +1,10 @@
+common_tmp:
+  noise_dim: &noise_dim 128
+
+model_params:
+  _key_value: True
+  generator:
+    model: ScitatorCGenerator
+    noise_dim: *noise_dim
+  discriminator:
+    model: ScitatorCDiscriminator

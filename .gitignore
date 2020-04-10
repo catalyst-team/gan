@@ -142,5 +142,6 @@ _nogit*
 # project
 rendered
 runs*.txt
+!gan_example/fconfigs/data
 
 

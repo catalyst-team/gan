@@ -1,0 +1,62 @@
+runner_params:
+  # input keys
+  # Note: for albumentations transforms we have to have key "image" =(
+  data_input_key: &real_data "image"
+  fake_data_output_key: &fake_data "fake_image"
+
+model_params:
+  _key_value: True
+  feature_extractor: # todo check if correct
+    model: InceptionV3
+    output_blocks: [3]
+    normalize_input: False
+    use_fid_inception: True
+
+
+stages:
+
+  callbacks_params:
+    ######################################
+    # Unconditional metrics callbacks: ###
+    ######################################
+    # TODO (important; low priority; usability) - how to compress this 100 lines to a reasonable amount (ideally single callback)?
+
+    # save generated and real images
+    memorizer:
+      callback: MemoryAccumulatorCallback
+      input_key:
+        *real_data: &memory_real_data "real_data"
+      output_key:
+        *fake_data: &memory_fake_data "fake_data"
+      memory_size: 200
+
+    # extract inception features from real data
+    feature_extractor_real:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_real_data
+      model_key: "feature_extractor"
+      channels: 3
+      layer_key:
+        blocks.3: &memory_real_features "real_features"
+
+    # extract inception features from fake data
+    feature_extractor_fake:
+      callback: MemoryFeatureExtractorCallback
+      memory_key: *memory_fake_data
+      model_key: "feature_extractor"
+      channels: 3
+      layer_key:
+        blocks.3: &memory_fake_features "fake_features"
+
+    # compute FID
+    frechet_inception_distance_conv:
+      callback: MemoryMetricCallback
+      memory_key:
+        *memory_fake_features: samples_a
+        *memory_real_features: samples_b
+      prefix: "metrics/FID"
+      metric: "FrechetInceptionDistance"
+
+    ##############################
+    # Metric callbacks [end] #####
+    ##############################

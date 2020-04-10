@@ -1,0 +1,32 @@
+runner_params:
+  # phases
+  generator_train_phase: &generator_train_phase generator_train
+  discriminator_train_phase: &discriminator_train_phase discriminator_train
+  # model keys:
+  generator_model_key: &generator_model_name "generator"
+  discriminator_model_key: &discriminator_model_name "discriminator"
+
+
+stages:
+
+  optimizer_params:
+    _key_value: True
+    generator:
+      optimizer: Adam
+      _model: [*generator_model_name]
+      lr: 0.0001
+      betas: [0.5, 0.999]
+    discriminator:
+      optimizer: Adam
+      _model: [*discriminator_model_name]
+      lr: 0.0001
+      betas: [0.5, 0.999]
+
+  callbacks_params:
+    phase_manager:
+      callback: PhaseManagerCallback
+      # one of "all" (use all callbacks), "same" (same phases as in train)
+      valid_mode: "all"
+      train_phases:
+        *discriminator_train_phase: 1
+        *generator_train_phase: 1
