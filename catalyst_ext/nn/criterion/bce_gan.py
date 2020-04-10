@@ -30,6 +30,34 @@ class BCELossDiscriminator(nn.BCEWithLogitsLoss):
         fake_target = torch.ones_like(fake_logits) * self.target_fake
         real_target = torch.ones_like(real_logits) * self.target_real
 
-        real_loss = super().forward(fake_logits, fake_target)
-        fake_loss = super().forward(real_logits, real_target)
+        fake_loss = super().forward(fake_logits, fake_target)
+        real_loss = super().forward(real_logits, real_target)
         return fake_loss + real_loss
+
+
+class BCELossDiscriminatorReal(nn.BCEWithLogitsLoss):
+
+    def __init__(self, target_real=1, **kwargs):
+        assert 0 <= target_real <= 1
+        super().__init__(**kwargs)
+        self.target_real = target_real
+
+    def forward(self, real_logits):
+        real_target = torch.ones_like(real_logits) * self.target_real
+
+        fake_loss = super().forward(real_logits, real_target)
+        return fake_loss
+
+
+class BCELossDiscriminatorFake(nn.BCEWithLogitsLoss):
+
+    def __init__(self, target_fake=0, **kwargs):
+        assert 0 <= target_fake <= 1
+        super().__init__(**kwargs)
+        self.target_fake = target_fake
+
+    def forward(self, fake_logits):
+        fake_target = torch.ones_like(fake_logits) * self.target_fake
+
+        fake_loss = super().forward(fake_logits, fake_target)
+        return fake_loss

@@ -6,7 +6,7 @@ model_params:
   generator:
     model: tm.SNGANGenerator64
     nz: *noise_dim
-    ngf: 128  # TODO: increase to 1024
+    ngf: 256  # TODO: increase to 1024
   discriminator:
     model: tm.SNGANDiscriminator64
-    ndf: 128  # TODO: increase to 1024
+    ndf: 256  # TODO: increase to 1024

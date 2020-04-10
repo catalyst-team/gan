@@ -41,6 +41,23 @@ stages:
     memory: {}
     prev_batch_metrics: {}
 
+  criterion_params:
+    _key_value: True
+    # criterions
+    loss_generator:
+      criterion:  # specified in another (loss) config
+    loss_discriminator:
+      criterion:  # specified in another (loss) config
+    # metrics
+    loss_discriminator_real:
+      criterion:  # specified in another (loss) config
+    loss_discriminator_fake:
+      criterion:  # specified in another (loss) config
+    average_logit:
+      criterion: AverageValue
+    wasserstein_distance:
+      criterion: WassersteinDistance
+
   callbacks_params:
 
     loss_g:
@@ -76,6 +93,37 @@ stages:
       callback: OptimizerCallback
       optimizer_key: discriminator
       loss_key: *loss_d
+
+    ########################################
+    # METRICS ##############################
+    ########################################
+
+    avg_real_embedding:
+      _wrapper: *d_train_wrapper
+      callback: CriterionCallback
+      criterion_key: "average_logit"
+      input_key: {}
+      output_key:
+        *real_logits: tensor
+      prefix: "embedding/real"
+
+    avg_fake_embedding:
+      callback: CriterionCallback
+      criterion_key: "average_logit"
+      input_key: {}
+      output_key:
+        *fake_logits: tensor
+      prefix: "embedding/fake"
+
+    wasserstein_distance:
+      _wrapper: *d_train_wrapper
+      callback: CriterionCallback
+      criterion_key: wasserstein_distance
+      input_key: {}
+      output_key:
+        *real_logits: real_validity
+        *fake_logits: fake_validity
+      prefix: "wasserstein_distance"
 
     #################################
     # Loss-dependant metrics

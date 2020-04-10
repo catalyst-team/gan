@@ -1,0 +1,21 @@
+stages:
+
+  criterion_params:
+    _key_value: True
+    # criterions
+    loss_generator:
+      criterion: WassersteinLossGenerator
+    loss_discriminator:
+      criterion: WassersteinLossDiscriminator
+    # metrics
+    loss_discriminator_real:
+      criterion: WassersteinLossDiscriminatorReal
+    loss_discriminator_fake:
+      criterion: WassersteinLossDiscriminatorFake
+
+
+  callbacks_params:
+
+    optim_d: # WGAN weight clipping optimizer
+      callback: WeightClampingOptimizerCallback
+      weight_clamp_value: 0.01

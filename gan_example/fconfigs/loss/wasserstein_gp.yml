@@ -1,0 +1,59 @@
+runner_params:
+  # input keys
+  # Note: for albumentations transforms we have to have key "image" =(
+  data_input_key: &real_data "image"
+  class_input_key: &class_targets "class_targets"
+  noise_input_key: &noise_input "noise"
+  # output keys
+  fake_logits_output_key: &fake_logits "fake_logits"
+  real_logits_output_key: &real_logits "real_logits"
+  fake_data_output_key: &fake_data "fake_image"
+  # phases
+  generator_train_phase: &generator_train_phase generator_train
+  discriminator_train_phase: &discriminator_train_phase discriminator_train
+  # model keys:
+  discriminator_model_key: &discriminator_model_name "discriminator"
+
+
+stages:
+
+  criterion_params:
+    _key_value: True
+    # criterions
+    loss_generator:
+      criterion: WassersteinLossGenerator
+    loss_discriminator:
+      criterion: WassersteinLossDiscriminator
+    gradient_penalty:
+      criterion: GradientPenaltyLoss
+    # metrics
+    loss_discriminator_real:
+      criterion: WassersteinLossDiscriminatorReal
+    loss_discriminator_fake:
+      criterion: WassersteinLossDiscriminatorFake
+
+
+  callbacks_params:
+    # rename this one (from loss_d/full to loss_d/wasserstein)
+    loss_d:
+      prefix: &loss_wasserstein loss_d/wasserstein
+
+    loss_d_gp:
+      _wrapper: &d_train_wrapper
+        callback: PhaseBatchWrapperCallback
+        active_phases: [*discriminator_train_phase]
+      callback: GradientPenaltyCallback
+      real_input_key: *real_data
+      fake_output_key: *fake_data
+      critic_model_key: *discriminator_model_name
+      criterion_key: gradient_penalty
+      prefix: &grad_penalty "loss_d/grad_penalty"
+
+    loss_d_full:
+      _wrapper: *d_train_wrapper
+      callback: MetricAggregationCallback
+      mode: "weighted_sum"
+      prefix: &loss_d "loss_d/full"
+      metrics:
+        *loss_wasserstein: 1.0
+        *grad_penalty: 10.0  # gradient penalty multiplier

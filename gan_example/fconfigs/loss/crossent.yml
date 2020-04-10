@@ -1,0 +1,56 @@
+runner_params:
+  # output keys
+  fake_logits_output_key: &fake_logits "fake_logits"
+  real_logits_output_key: &real_logits "real_logits"
+  # phases
+  generator_train_phase: &generator_train_phase generator_train
+  discriminator_train_phase: &discriminator_train_phase discriminator_train
+
+
+stages:
+
+  criterion_params:
+    _key_value: True
+    # criterions
+    loss_generator:
+      criterion: BCELossGenerator
+    loss_discriminator:
+      criterion: BCELossDiscriminator
+    # metrics
+    loss_discriminator_real:
+      criterion: BCELossDiscriminatorReal
+    loss_discriminator_fake:
+      criterion: BCELossDiscriminatorFake
+    average_probability:
+      criterion: AverageProbability
+
+
+  callbacks_params:
+
+    avg_real_proba:
+      _wrapper: &d_train_wrapper
+        callback: PhaseBatchWrapperCallback
+        active_phases: [*discriminator_train_phase]
+      callback: CriterionCallback
+      criterion_key: "average_probability"
+      input_key: {}
+      output_key:
+        *real_logits: tensor
+      prefix: &p_real "discr_proba/real"
+
+    avg_fake_proba:
+      callback: CriterionCallback
+      criterion_key: "average_probability"
+      input_key: {}
+      output_key:
+        *fake_logits: tensor
+      prefix: &p_fake "discr_proba/fake"
+
+    margin_proba:
+      _wrapper: *d_train_wrapper
+      callback: MetricAggregationCallback
+      metrics:
+        *p_real: 1
+        *p_fake: -1
+      mode: "weighted_sum"
+      prefix: "discr_proba/diff"
