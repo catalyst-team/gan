@@ -3,9 +3,11 @@ import os
 import shutil
 import itertools
 import yaml
+from collections import defaultdict
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
+from pathlib import PurePosixPath as _unix
 
 from catalyst.utils import load_config
 from jinja2 import Environment, FileSystemLoader
@@ -28,6 +30,11 @@ parser.add_argument(
     '--out_names', '-n', type=str, nargs='*', required=False,
     help="names of rendered templates to save. if specified must have "
          "same number of arguments as --in_template"
+)
+parser.add_argument(
+    '--exp_dir', '-l', type=Path, default='./logs/tmp_experiment',
+    help="logdir for running all of the rendered experiments"
+         "(to specify in runs.txt)"
 )
 
 
@@ -116,7 +123,7 @@ def iterate_grid(grid_kv):
         yield dirname, curr_kv
 
 
-def main(in_templates, in_params, out_dir, out_names):
+def main(in_templates, in_params, out_dir, out_names, exp_dir):
     assert all(os.path.exists(t) for t in in_templates)
     assert os.path.exists(in_params)
     # assert not os.path.exists(out_dir)
@@ -135,20 +142,28 @@ def main(in_templates, in_params, out_dir, out_names):
     if grid_kv:
         save_yaml(grid_kv, os.path.join(out_dir, "_params_grid.yml"))
 
+    run_commands = defaultdict(lambda: f"catalyst-dl run -C")
     for in_template, out_name in zip(in_templates, out_names):
         template = create_jinja_template(in_template)
         if num_rendered_configs == 1:
             out_config = out_dir / out_name
             out_config.write_text(template.render(**params_kv))
+            run_commands[exp_dir] += f" {_unix(out_config)}"
         else:
-            for exp_dir, exp_grid_params in iterate_grid(grid_kv):
-                curr_out_dir = out_dir / exp_dir
+            for config_dir, exp_grid_params in iterate_grid(grid_kv):
+                curr_out_dir = out_dir / config_dir
                 os.makedirs(curr_out_dir, exist_ok=True)
                 save_yaml(exp_grid_params, curr_out_dir / "_params_grid.yml")
                 out_config = curr_out_dir / out_name
                 out_config.write_text(
                     template.render(**params_kv, **exp_grid_params)
                 )
+                run_commands[exp_dir / config_dir] += f" {_unix(out_config)}"
+
+    with open(out_dir / "runs.txt", "w") as runs_file:
+        for logdir, bash_cmd in run_commands.items():
+            bash_cmd = f"{bash_cmd} --logdir {_unix(logdir)}{os.linesep}"
+            runs_file.write(bash_cmd)
 
 
 def _main():
@@ -157,7 +172,8 @@ def _main():
         in_templates=args.in_template,
         in_params=args.in_params,
         out_dir=args.out_dir,
-        out_names=args.out_names
+        out_names=args.out_names,
+        exp_dir=args.exp_dir
     )
 
 
