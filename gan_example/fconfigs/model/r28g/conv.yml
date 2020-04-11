@@ -1,4 +1,4 @@
-common_tmp:
+hparams:
   noise_dim: &noise_dim 128
 
 model_params:

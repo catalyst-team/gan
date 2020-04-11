@@ -1,4 +1,4 @@
-common_tmp:
+hparams:
   noise_dim: &noise_dim 128 # TODO: 100 is proven to be working well
 
 model_params:

@@ -1,0 +1,10 @@
+hparams:
+  noise_dim: &noise_dim {{ noise_dim or 128 }}
+
+model_params:
+  _key_value: True
+  generator:
+    model: ScitatorGenerator
+    noise_dim: *noise_dim
+  discriminator:
+    model: ScitatorDiscriminator

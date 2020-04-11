@@ -1,6 +1,7 @@
-common_tmp:
+hparams:
   image_side: &image_side 64
   noise_dim: &noise_dim 128
+  batch_size: &batch_size 64
 
 runner_params:
   # input keys
@@ -26,7 +27,7 @@ stages:
         output_key: *noise_input
 
   data_params:
-    batch_size: 128
+    batch_size: *batch_size
 
     datasets:
       train:

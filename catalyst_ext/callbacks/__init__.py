@@ -1,4 +1,4 @@
-from .callbacks import (
+from .memory import (
     MemoryMetricCallback, MemoryMultiMetricCallback,
     MemoryAccumulatorCallback, MemoryFeatureExtractorCallback,
     MemoryTransformCallback,

@@ -1,3 +1,7 @@
+hparams:
+  # how many images are used for perceptual metrics computation
+  _images_support: &support 200
+
 runner_params:
   # input keys
   # Note: for albumentations transforms we have to have key "image" =(
@@ -25,7 +29,7 @@ stages:
         *real_data: &memory_real_data "real_data"
       output_key:
         *fake_data: &memory_fake_data "fake_data"
-      memory_size: 200
+      memory_size: *support
 
     feature_extractor_real:
       callback: MemoryFeatureExtractorCallback

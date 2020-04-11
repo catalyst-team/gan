@@ -1,0 +1,23 @@
+# data params ###########
+image_side: 28
+batch_size: 128
+# evaluation params #####
+#_images_support: 200
+# model params ##########
+noise_dim: 128
+# loss function #########
+loss: ["hinge", "bce", "wasserstein", "wasserstein_gp"]
+# optimizer params ######
+# use with tstatic_choise
+optim_choise: ["benchmark", "A", "B", "C", "D", "E", "F"]
+# use with tstatic
+#optim_lr_G: 0.0001
+#optim_beta1_G: 0.5
+#optim_beta2_G: 0.9
+#
+#optim_lr_D: 0.0001
+#optim_beta1_D: 0.5
+#optim_beta2_D: 0.9
+#
+#optim_steps_D: 1
+#optim_steps_G: 1

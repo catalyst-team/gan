@@ -1,4 +1,4 @@
-common_tmp:
+hparams:
   noise_dim: &noise_dim 16
   n_classes: &n_classes 10
 

@@ -1,6 +1,7 @@
-common_tmp:
-  image_side: &image_side 64
-  noise_dim: &noise_dim 128
+hparams:
+  image_side: &image_side {{ image_side or 64 }}  # TODO: check
+  noise_dim: &noise_dim {{noise_dim or 128}}
+  batch_size: &batch_size {{batch_size or 64}}
 
 runner_params:
   # input keys
@@ -14,6 +15,8 @@ stages:
   transform_params:
     transform: A.Compose
     transforms:
+      - transform: PillowToNumpy
+        image_key: *real_data
       - transform: A.Resize
         height: *image_side
         width: *image_side
@@ -26,10 +29,13 @@ stages:
         output_key: *noise_input
 
   data_params:
-    batch_size: 128
+    batch_size: *batch_size
 
     datasets:
       train:
-        dataset: ImageOnlyDataset
-        root_dir: D:/data/ffhq-dataset/data/thumbnails128x128
+        dataset: torchvision.keyvalue.LSUN  # todo: download
+        root: ./data/LSUN
     image_key: *real_data
+
+  state_params:
+    valid_loader: "train"

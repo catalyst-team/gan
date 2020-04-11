@@ -9,7 +9,7 @@ from catalyst.core import State, Callback, CallbackOrder, MetricCallback
 from catalyst.dl import registry
 from catalyst.utils import get_dictkey_auto_fn
 
-from utils import get_metric, get_batch_transform, get_module
+from catalyst_ext.utils import get_metric, get_batch_transform, get_module
 from catalyst_ext import utils
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,6 @@ def _stack_memory_lists_to_tensors(state: State):
             state.memory[key] = torch.stack(values_list, dim=0)
 
 
-@registry.Callback
 class MemoryMetricCallback(MetricCallback):
 
     def __init__(self, prefix: str,
@@ -68,7 +67,6 @@ class MemoryMetricCallback(MetricCallback):
         state.loader_metrics[self.prefix] = metric
 
 
-@registry.Callback
 class MemoryMultiMetricCallback(MemoryMetricCallback):
 
     def __init__(self, prefix: str, metric: Union[str, Dict[str, str]],
@@ -93,7 +91,6 @@ class MemoryMultiMetricCallback(MemoryMetricCallback):
             state.loader_metrics[key] = metric * self.multiplier
 
 
-@registry.Callback
 class MemoryAccumulatorCallback(Callback):
     SAVE_FIRST_MODE = "first"
     SAVE_LAST_MODE = "last"
@@ -196,7 +193,6 @@ class MemoryAccumulatorCallback(Callback):
         return index
 
 
-@registry.Callback
 class MemoryFeatureExtractorCallback(Callback):
 
     def __init__(
@@ -340,7 +336,6 @@ class MemoryFeatureExtractorCallback(Callback):
         return output_key, activation, activation_params
 
 
-@registry.Callback
 class MemoryTransformCallback(Callback):  # todo: generalize
 
     def __init__(self,
@@ -372,7 +367,6 @@ class MemoryTransformCallback(Callback):  # todo: generalize
             raise NotImplementedError()
 
 
-@registry.Callback
 class PerceptualPathLengthCallback(MetricCallback):
 
     def __init__(self, prefix: str,
@@ -463,7 +457,6 @@ class PerceptualPathLengthCallback(MetricCallback):
         state.loader_metrics[self.prefix] = metric
 
 
-@registry.Callback
 class CGanPerceptualPathLengthCallback(PerceptualPathLengthCallback):
 
     def __init__(self, num_classes=10, **kwargs):

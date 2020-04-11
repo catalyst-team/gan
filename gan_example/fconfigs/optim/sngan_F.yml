@@ -1,3 +1,15 @@
+hparams:
+  optim_lr_G: &optim_lr_G 0.001
+  optim_beta1_G: &optim_beta1_G 0.9
+  optim_beta2_G: &optim_beta2_G 0.999
+
+  optim_lr_D: &optim_lr_D 0.001
+  optim_beta1_D: &optim_beta1_D 0.9
+  optim_beta2_D: &optim_beta2_D 0.999
+
+  steps_D: &steps_D 5
+  steps_G: &steps_G 1
+
 runner_params:
   # phases
   generator_train_phase: &generator_train_phase generator_train
@@ -14,13 +26,13 @@ stages:
     generator:
       optimizer: Adam
       _model: [*generator_model_name]
-      lr: 0.001
-      betas: [0.9, 0.999]
+      lr: *optim_lr_G
+      betas: [*optim_beta1_G, *optim_beta2_G]
     discriminator:
       optimizer: Adam
       _model: [*discriminator_model_name]
-      lr: 0.001
-      betas: [0.9, 0.999]
+      lr: *optim_lr_D
+      betas: [*optim_beta1_D, *optim_beta2_D]
 
   callbacks_params:
     phase_manager:
@@ -28,5 +40,5 @@ stages:
       # one of "all" (use all callbacks), "same" (same phases as in train)
       valid_mode: "all"
       train_phases:
-        *discriminator_train_phase: 5
-        *generator_train_phase: 1
+        *discriminator_train_phase: *steps_D
+        *generator_train_phase: *steps_G

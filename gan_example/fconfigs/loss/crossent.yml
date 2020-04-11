@@ -1,3 +1,6 @@
+hparams:
+  loss: "bce"
+
 runner_params:
   # output keys
   fake_logits_output_key: &fake_logits "fake_logits"

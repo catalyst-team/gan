@@ -143,5 +143,6 @@ _nogit*
 rendered
 runs*.txt
 !gan_example/fconfigs/data
+!gan_example/tconfigs/data
 
 

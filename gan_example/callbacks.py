@@ -169,7 +169,7 @@ class ConstNoiseVisualizerCalback(Callback):
 
     @staticmethod
     def _get_tensorboard_logger(state: State) -> SummaryWriter:
-        tb_key = VisualizationCallback.TENSORBOARD_LOGGER_KEY
+        tb_key = ConstNoiseVisualizerCalback.TENSORBOARD_LOGGER_KEY
         if (
                 tb_key in state.callbacks
                 and state.loader_name in state.callbacks[tb_key].loggers

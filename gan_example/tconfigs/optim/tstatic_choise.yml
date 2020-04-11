@@ -1,0 +1,118 @@
+hparams:
+  {% if optim_choise == "benchmark" %}
+  optim_lr_G: &optim_lr_G 0.0002
+  optim_beta1_G: &optim_beta1_G 0
+  optim_beta2_G: &optim_beta2_G 0.9
+
+  optim_lr_D: &optim_lr_D 0.0002
+  optim_beta1_D: &optim_beta1_D 0
+  optim_beta2_D: &optim_beta2_D 0.9
+
+  steps_D: &steps_D 2
+  steps_G: &steps_G 1
+  {% endif %}
+  {% if optim_choise == "A" %}
+  optim_lr_G: &optim_lr_G 0.0001
+  optim_beta1_G: &optim_beta1_G 0.5
+  optim_beta2_G: &optim_beta2_G 0.9
+
+  optim_lr_D: &optim_lr_D 0.0001
+  optim_beta1_D: &optim_beta1_D 0.5
+  optim_beta2_D: &optim_beta2_D 0.9
+
+  steps_D: &steps_D 5
+  steps_G: &steps_G 1
+  {% endif %}
+  {% if optim_choise == "B" %}
+  optim_lr_G: &optim_lr_G 0.0001
+  optim_beta1_G: &optim_beta1_G 0.5
+  optim_beta2_G: &optim_beta2_G 0.999
+
+  optim_lr_D: &optim_lr_D 0.0001
+  optim_beta1_D: &optim_beta1_D 0.5
+  optim_beta2_D: &optim_beta2_D 0.999
+
+  steps_D: &steps_D 1
+  steps_G: &steps_G 1
+  {% endif %}
+  {% if optim_choise == "C" %}
+  optim_lr_G: &optim_lr_G 0.0002
+  optim_beta1_G: &optim_beta1_G 0.5
+  optim_beta2_G: &optim_beta2_G 0.999
+
+  optim_lr_D: &optim_lr_D 0.0002
+  optim_beta1_D: &optim_beta1_D 0.5
+  optim_beta2_D: &optim_beta2_D 0.999
+
+  steps_D: &steps_D 1
+  steps_G: &steps_G 1
+  {% endif %}
+  {% if optim_choise == "D" %}
+  optim_lr_G: &optim_lr_G 0.001
+  optim_beta1_G: &optim_beta1_G 0.5
+  optim_beta2_G: &optim_beta2_G 0.9
+
+  optim_lr_D: &optim_lr_D 0.001
+  optim_beta1_D: &optim_beta1_D 0.5
+  optim_beta2_D: &optim_beta2_D 0.9
+
+  steps_D: &steps_D 5
+  steps_G: &steps_G 1
+  {% endif %}
+  {% if optim_choise == "E" %}
+  optim_lr_G: &optim_lr_G 0.001
+  optim_beta1_G: &optim_beta1_G 0.5
+  optim_beta2_G: &optim_beta2_G 0.999
+
+  optim_lr_D: &optim_lr_D 0.001
+  optim_beta1_D: &optim_beta1_D 0.5
+  optim_beta2_D: &optim_beta2_D 0.999
+
+  steps_D: &steps_D 5
+  steps_G: &steps_G 1
+  {% endif %}
+  {% if optim_choise == "F" %}
+  optim_lr_G: &optim_lr_G 0.001
+  optim_beta1_G: &optim_beta1_G 0.9
+  optim_beta2_G: &optim_beta2_G 0.999
+
+  optim_lr_D: &optim_lr_D 0.001
+  optim_beta1_D: &optim_beta1_D 0.9
+  optim_beta2_D: &optim_beta2_D 0.999
+
+  steps_D: &steps_D 5
+  steps_G: &steps_G 1
+  {% endif %}
+
+runner_params:
+  # phases
+  generator_train_phase: &generator_train_phase generator_train
+  discriminator_train_phase: &discriminator_train_phase discriminator_train
+  # model keys:
+  generator_model_key: &generator_model_name "generator"
+  discriminator_model_key: &discriminator_model_name "discriminator"
+
+
+stages:
+
+  optimizer_params:
+    _key_value: True
+    generator:
+      optimizer: Adam
+      _model: [*generator_model_name]
+      lr: *optim_lr_G
+      betas: [*optim_beta1_G, *optim_beta2_G]
+    discriminator:
+      optimizer: Adam
+      _model: [*discriminator_model_name]
+      lr: *optim_lr_D
+      betas: [*optim_beta1_D, *optim_beta2_D]
+
+  callbacks_params:
+    phase_manager:
+      callback: PhaseManagerCallback
+      # one of "all" (use all callbacks), "same" (same phases as in train)
+      valid_mode: "all"
+      train_phases:
+        *discriminator_train_phase: *steps_D
+        *generator_train_phase: *steps_G

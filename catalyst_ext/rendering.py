@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import itertools
+import yaml
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
@@ -12,7 +13,7 @@ from jinja2 import Environment, FileSystemLoader
 
 parser = ArgumentParser()
 parser.add_argument(
-    '--in_template', '-t', type=Path, required=True,
+    '--in_template', '-t', type=Path, nargs='+', required=True,
     help="path to class config"
 )
 parser.add_argument(
@@ -23,30 +24,50 @@ parser.add_argument(
     '--out_dir', '-o', type=Path, required=True,
     help="path to folder where to save all configs"
 )
+parser.add_argument(
+    '--out_names', '-n', type=str, nargs='*', required=False,
+    help="names of rendered templates to save. if specified must have "
+         "same number of arguments as --in_template"
+)
 
 
-def main(in_template, in_params, out_dir):
-    assert os.path.exists(in_template)
-    assert os.path.exists(in_params)
-    # assert not os.path.exists(out_dir)
+def save_yaml(obj, path):
+    with open(path, 'w') as f:
+        yaml.dump(obj, f)
 
-    os.makedirs(out_dir, exist_ok=True)
-    shutil.copy(in_template, os.path.join(out_dir, "_template.yml"))
-    shutil.copy(in_params, os.path.join(out_dir, "_params.yml"))
 
-    # processing template
-    env = Environment(
-        loader=FileSystemLoader(str(in_template.absolute().parent)),
-        trim_blocks=True,
-        lstrip_blocks=True
-    )
-    # env.globals.update(zip=zip)  # enable zip command inside jinja2 template
-    template = env.get_template(in_template.name)
+def copy_multiple(src_list, dst_dir, dst_fname_list):
+    for src, dst_fname in zip(src_list, dst_fname_list):
+        shutil.copy(src, os.path.join(dst_dir, dst_fname))
 
+
+def save_templates(in_templates, out_dir, out_names):
+    assert len(in_templates) == len(out_names)
+    assert len(in_templates) > 0
+    if len(in_templates) == 1:
+        shutil.copy(in_templates[0],
+                    os.path.join(out_dir, "_template.yml"))
+    else:
+        out_dir = os.path.join(out_dir, "_templates")
+        os.makedirs(out_dir, exist_ok=True)
+        copy_multiple(in_templates, out_dir, out_names)
+
+
+def get_out_names(in_templates, out_names=None):
+    if out_names is None:
+        out_names = [f"t{i:02d}.yml" for i, _ in enumerate(in_templates)]
+    else:
+        for i in range(len(out_names)):
+            if not out_names[i].endswith('.yml'):
+                out_names[i] += '.yml'
+    return out_names
+
+
+def read_params(in_params):
     # read param grid
     params_grid = load_config(in_params, ordered=True)
-    params_kv = dict()
-    grid_kv = dict()
+    params_kv = dict()  # constants
+    grid_kv = dict()  # grid search
     num_rendered_configs = 1
     for k, v in params_grid.items():
         if isinstance(v, list):
@@ -64,46 +85,79 @@ def main(in_template, in_params, out_dir):
             params_kv[k] = v
         else:
             params_kv[k] = v
+    return params_kv, grid_kv, num_rendered_configs
 
-    if num_rendered_configs == 1:
-        assert len(grid_kv) == 0
 
-        out_config = out_dir / "config.yml"
-        out_config.write_text(
-            template.render(
-                **params_kv
-            )
-        )
-    else:
-        # assertion can be safely removed
-        assert num_rendered_configs < 1000, "be careful, too many configs"
+def create_jinja_template(in_template):
+    # processing template
+    env = Environment(
+        loader=FileSystemLoader(str(in_template.absolute().parent)),
+        trim_blocks=True,
+        lstrip_blocks=True
+    )
+    # env.globals.update(zip=zip)  # enable zip command inside jinja2 template
+    template = env.get_template(in_template.name)
+    return template
 
-        grid_keys = list(grid_kv.keys())
-        for i, values_list in enumerate(itertools.product(*grid_kv.values())):
-            assert len(grid_keys) == len(values_list)
-            curr_kv = {
-                grid_keys[j]: values_list[j] for j in range(len(values_list))
-            }
-            info = '-'.join([f"{k}_{v}" for k, v in curr_kv.items()])
 
-            prefix = f"{i:03d}"
-            if len(info) < 30:
-                prefix = info
-            out_config = out_dir / f"config_{prefix}.yml"
-            out_config.write_text(
-                template.render(
-                    **params_kv,
-                    **curr_kv
+def iterate_grid(grid_kv):
+    grid_keys = list(grid_kv.keys())
+    for i, values_list in enumerate(itertools.product(*grid_kv.values())):
+        assert len(grid_keys) == len(values_list)
+        curr_kv = {
+            grid_keys[j]: values_list[j] for j in range(len(values_list))
+        }
+        info = '-'.join([f"{k}_{v}" for k, v in curr_kv.items()])
+
+        prefix = f"{i:03d}"
+        if len(info) < 30:
+            prefix = info
+        dirname = f"config_{prefix}"
+        yield dirname, curr_kv
+
+
+def main(in_templates, in_params, out_dir, out_names):
+    assert all(os.path.exists(t) for t in in_templates)
+    assert os.path.exists(in_params)
+    # assert not os.path.exists(out_dir)
+    out_names = get_out_names(in_templates, out_names)
+    assert len(out_names) == len(in_templates)
+
+    os.makedirs(out_dir, exist_ok=True)
+    # shutil.copy(in_template, os.path.join(out_dir, "_template.yml"))
+    save_templates(in_templates, out_dir, out_names)
+    shutil.copy(in_params, os.path.join(out_dir, "_params_raw.yml"))
+
+    # read param grid
+    params_kv, grid_kv, num_rendered_configs = read_params(in_params)
+    if params_kv:
+        save_yaml(params_kv, os.path.join(out_dir, "_params_const.yml"))
+    if grid_kv:
+        save_yaml(grid_kv, os.path.join(out_dir, "_params_grid.yml"))
+
+    for in_template, out_name in zip(in_templates, out_names):
+        template = create_jinja_template(in_template)
+        if num_rendered_configs == 1:
+            out_config = out_dir / out_name
+            out_config.write_text(template.render(**params_kv))
+        else:
+            for exp_dir, exp_grid_params in iterate_grid(grid_kv):
+                curr_out_dir = out_dir / exp_dir
+                os.makedirs(curr_out_dir, exist_ok=True)
+                save_yaml(exp_grid_params, curr_out_dir / "_params_grid.yml")
+                out_config = curr_out_dir / out_name
+                out_config.write_text(
+                    template.render(**params_kv, **exp_grid_params)
                 )
-            )
 
 
 def _main():
     args = parser.parse_args()
     main(
-        in_template=args.in_template,
+        in_templates=args.in_template,
         in_params=args.in_params,
-        out_dir=args.out_dir
+        out_dir=args.out_dir,
+        out_names=args.out_names
     )
 
 

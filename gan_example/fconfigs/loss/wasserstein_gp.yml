@@ -1,3 +1,6 @@
+hparams:
+  loss: "wasserstein_gp"
+
 runner_params:
   # input keys
   # Note: for albumentations transforms we have to have key "image" =(

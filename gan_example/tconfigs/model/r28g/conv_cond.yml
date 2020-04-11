@@ -1,0 +1,21 @@
+hparams:
+  noise_dim: &noise_dim {{ noise_dim or 128 }}
+  n_classes: &n_classes {{ n_classes or 10 }}
+  ngf: &ngf {{ ngf or 64 }}
+  ndf: &ndf {{ ndf or 64 }}
+
+model_params:
+  _key_value: True
+  generator:
+    model: SimpleCGenerator
+    noise_dim: *noise_dim
+    num_classes: *n_classes
+    conv_mode: True
+    n_hidden: *ngf
+    hidden_multiplier: 2
+  discriminator:
+    model: SimpleCDiscriminator
+    num_classes: *n_classes
+    conv_mode: True
+    n_hidden: *ndf
+    hidden_multiplier: 2
