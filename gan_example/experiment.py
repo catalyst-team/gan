@@ -5,6 +5,7 @@ from torch import nn
 from catalyst.dl import ConfigExperiment
 from catalyst.dl.registry import MODELS
 from catalyst_ext.utils import get_dataset
+from .callbacks import HParamsTbSaverCallback
 
 
 # custom weights initialization called on netG and netD
@@ -61,3 +62,13 @@ class Experiment(ConfigExperiment):
         if dc_init_flag:
             model.apply(dcgan_weights_init)
         return model
+
+    def get_callbacks(self, stage: str):
+        # more convenient to add this callback from here
+        # as otherwise it would require to add extra lines to all configs
+        callbacks = super().get_callbacks(stage)
+        callbacks["hparams_saver"] = HParamsTbSaverCallback(
+            hparams_dict=dict(self._config.get("hparams", {})),
+            metrics_dict=None
+        )
+        return callbacks

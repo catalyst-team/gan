@@ -1,4 +1,5 @@
 hparams:
+  optim_choise: {{ optim_choise }}
   {% if optim_choise == "benchmark" %}
   optim_lr_G: &optim_lr_G 0.0002
   optim_beta1_G: &optim_beta1_G 0

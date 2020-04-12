@@ -1,5 +1,6 @@
 # flake8: noqa
 # isort: skip_file
+import copy
 import torch
 import torchvision.utils
 
@@ -187,5 +188,57 @@ class TrickyMetricManagerCallback(MetricManagerCallback):
         super().on_batch_start(state)
 
 
+class HParamsTbSaverCallback(Callback):
+
+    _metrics_dict = {
+        "metrics/FID": "FID"
+    }
+
+    def __init__(self, hparams_dict, metrics_dict=None,
+                 last=True, best=True):
+        super().__init__(order=CallbackOrder.Metric)
+        self.hparams_dict = dict(hparams_dict)
+        # name_in -> name_out
+        self.metrics_dict = metrics_dict or self._metrics_dict
+        self.last = last
+        self.best = best
+
+    def on_stage_end(self, state: State):
+        if state.is_infer_stage:
+            return
+        tb_logger = self._get_tensorboard_logger(state)
+        hparams_dict = dict(self.hparams_dict)
+        if self.last:
+            hparams_dict["record_kind"] = "last"
+            tb_logger.add_hparams(
+                hparam_dict=hparams_dict,
+                metric_dict={
+                    v: state.valid_metrics[k]
+                    for k, v in self.metrics_dict.items()
+                }
+            )
+        if self.best:
+            hparams_dict["record_kind"] = "best"
+            tb_logger.add_hparams(
+                hparam_dict=hparams_dict,
+                metric_dict={
+                    v: state.best_valid_metrics[k]
+                    for k, v in self.metrics_dict.items()
+                }
+            )
+
+    @staticmethod
+    def _get_tensorboard_logger(state: State) -> SummaryWriter:
+        tb_key = ConstNoiseVisualizerCalback.TENSORBOARD_LOGGER_KEY
+        if (
+                tb_key in state.callbacks
+                and state.loader_name in state.callbacks[tb_key].loggers
+        ):  # Note: gets valid_loader(!)
+            return state.callbacks[tb_key].loggers[state.valid_loader]
+        raise RuntimeError(
+            f"Cannot find Tensorboard logger for loader {state.loader_name}"
+        )
+
+
 __all__ = ["VisualizationCallback", "TrickyMetricManagerCallback",
-           "ConstNoiseVisualizerCalback"]
+           "ConstNoiseVisualizerCalback", "HParamsTbSaverCallback"]

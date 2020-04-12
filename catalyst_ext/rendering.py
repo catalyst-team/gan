@@ -148,7 +148,7 @@ def main(in_templates, in_params, out_dir, out_names, exp_dir):
         if num_rendered_configs == 1:
             out_config = out_dir / out_name
             out_config.write_text(template.render(**params_kv))
-            run_commands[exp_dir] += f" {_unix(out_config)}"
+            run_commands["experiment_logs"] += f" {_unix(out_config)}"
         else:
             for config_dir, exp_grid_params in iterate_grid(grid_kv):
                 curr_out_dir = out_dir / config_dir
@@ -158,12 +158,38 @@ def main(in_templates, in_params, out_dir, out_names, exp_dir):
                 out_config.write_text(
                     template.render(**params_kv, **exp_grid_params)
                 )
-                run_commands[exp_dir / config_dir] += f" {_unix(out_config)}"
+                run_commands[config_dir] += f" {_unix(out_config)}"
 
-    with open(out_dir / "runs.txt", "w") as runs_file:
+    # prepare runs
+    prepare_runs(out_dir=out_dir, exp_dir=exp_dir, run_commands=run_commands)
+    # prepare runs check
+    prepare_runs(
+        out_dir=out_dir, exp_dir=exp_dir, run_commands=run_commands,
+        suffix='_check', additional=' --check'
+    )
+
+
+def prepare_runs(out_dir, exp_dir, run_commands,
+                 suffix='', additional=''):
+    runs_filename = out_dir / f"runs{suffix}.txt"
+    if suffix:
+        exp_dir = exp_dir / suffix
+    with open(runs_filename, "w") as runs_file:
+        # copy design experiment
+        design_dir = exp_dir / '_experiment_design'
+        os.makedirs(exp_dir, exist_ok=True)
+        bash_cmd = f"cp -r {_unix(out_dir)} {_unix(design_dir)}{os.linesep}"
+        runs_file.write(bash_cmd)
         for logdir, bash_cmd in run_commands.items():
-            bash_cmd = f"{bash_cmd} --logdir {_unix(logdir)}{os.linesep}"
+            bash_cmd = f"{bash_cmd} --logdir {_unix(exp_dir / logdir)}" \
+                       f"{additional}{os.linesep}"
             runs_file.write(bash_cmd)
+    with open(out_dir / f"run_command{suffix}.txt", "w") as cmd_file:
+        cmd = f"export CUDNN_DETERMINISTIC=True{os.linesep}"
+        cmd += f"export CUDNN_BENCHMARK=False{os.linesep}"
+        cmd += f"cat {_unix(runs_filename)} " \
+               f"| catalyst-parallel-run 2 {_unix(exp_dir / '_runs_log')}"
+        cmd_file.write(cmd)
 
 
 def _main():
