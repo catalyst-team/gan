@@ -1,10 +1,15 @@
 # data params ###########
 image_side: 28
-batch_size: 128
-# evaluation params #####
-#_images_support: 200
+
 # model params ##########
 noise_dim: 128
+
+# evaluation params #####
+#_images_support: 200
+
+# training params #######
+batch_size: 128
+num_epochs: 100
 # loss function #########
 loss: ["hinge", "bce", "wasserstein", "wasserstein_gp"]
 # optimizer params ######

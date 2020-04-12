@@ -1,5 +1,5 @@
 hparams:
-  noise_dim: &noise_dim 128
+  noise_dim: &noise_dim {{noise_dim or 128}}
 
 runner_params:
   # input keys
@@ -33,7 +33,7 @@ stages:
     num_workers: 0
 
   state_params:
-    num_epochs: 20
+    num_epochs: {{ num_epochs or 100 }}
     main_metric: "metrics/FID"
     minimize_metric: True
     batch_consistant_metrics: False

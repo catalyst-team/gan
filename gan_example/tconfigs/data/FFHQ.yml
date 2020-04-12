@@ -1,4 +1,4 @@
-common_tmp:
+hparams:
   image_side: &image_side {{ image_side or 64}}
   noise_dim: &noise_dim {{ noise_dim or 128 }}
   batch_size: &batch_size {{ batch_size or 64 }}

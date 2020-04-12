@@ -1,0 +1,17 @@
+# data params ###########
+image_side: 64
+
+# model params ##########
+noise_dim: 100
+
+# evaluation params #####
+#_images_support: 200
+
+# training params #######
+batch_size: 128
+num_epochs: 100
+# loss function #########
+loss: "bce"
+# optimizer params ######
+# use with tstatic_choise
+optim_choise: "C"

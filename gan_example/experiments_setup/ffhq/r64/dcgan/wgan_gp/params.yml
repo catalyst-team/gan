@@ -1,0 +1,23 @@
+# data params ###########
+image_side: 64
+
+# model params ##########
+noise_dim: 100
+
+# evaluation params #####
+#_images_support: 200
+
+# training params #######
+batch_size: 128
+num_epochs: 100
+# loss function #########
+loss: "wasserstein_gp"
+# optimizer params ######
+optim_lr_G: 0.0001
+optim_beta1_G: 0
+optim_beta2_G: 0.9
+optim_lr_D: 0.0001
+optim_beta1_D: 0
+optim_beta2_D: 0.9
+steps_D: 5
+steps_G: 1
