@@ -13,7 +13,6 @@ ndf: 256
 batch_size: 64
 num_epochs: 100
 # loss function #########
-loss: "bce"
+loss: "hinge"
 # optimizer params ######
-# use with tstatic_choise
-optim_choise: "C"
+optim_choise: "benchmark"

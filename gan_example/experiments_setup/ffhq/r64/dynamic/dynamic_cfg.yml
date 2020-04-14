@@ -1,0 +1,39 @@
+hparams:
+  opt_dyn_D_batch_metric: &opt_dyn_D_batch_metric {{opt_dyn_D_batch_metric}}
+  opt_dyn_G_batch_metric: &opt_dyn_G_batch_metric {{opt_dyn_G_batch_metric}}
+  opt_dyn_D_threshold: &opt_dyn_D_threshold {{opt_dyn_D_threshold}}
+  opt_dyn_G_threshold: &opt_dyn_G_threshold {{opt_dyn_G_threshold}}
+  steps_D: &steps_D {{ optim_steps_D}}
+  steps_G: &steps_G {{ optim_steps_G}}
+  opt_dyn_D_alpha: &opt_dyn_D_alpha {{opt_dyn_D_alpha}}
+  opt_dyn_G_alpha: &opt_dyn_G_alpha {{opt_dyn_G_alpha}}
+
+runner_params:
+  # phases
+  generator_train_phase: &generator_train_phase generator_train
+  discriminator_train_phase: &discriminator_train_phase discriminator_train
+
+
+stages:
+
+  callbacks_params:
+
+    phase_manager:
+      callback: SmartPhaseManagerCallback
+      valid_mode: "all"
+      train_phases:
+        *discriminator_train_phase:
+          steps: *steps_D
+          batch_metric_key: *opt_dyn_D_batch_metric
+          threshold: *opt_dyn_D_threshold
+          alpha: *opt_dyn_D_alpha
+          greater_is_good: True
+        *generator_train_phase:
+          steps: *steps_G
+          batch_metric_key: *opt_dyn_G_batch_metric
+          threshold: *opt_dyn_G_threshold
+          alpha: *opt_dyn_G_alpha
+          greater_is_good: False
+
+    tricky_metric_manager_callback: # saves batch_metrics to prev_batch_metrics
+      callback: TrickyMetricManagerCallback

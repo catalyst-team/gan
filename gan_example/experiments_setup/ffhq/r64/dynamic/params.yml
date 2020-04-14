@@ -1,0 +1,27 @@
+# data params ###########
+image_side: 64
+
+# model params ##########
+noise_dim: 100
+
+# evaluation params #####
+#_images_support: 200
+
+# training params #######
+batch_size: 128
+num_epochs: 25
+# loss function #########
+loss: "bce"
+# optimizer params ######
+# use with tstatic_choise
+optim_choise: "C"
+
+# dynamic config
+opt_dyn_D_batch_metric: "discr_proba/diff"
+opt_dyn_G_batch_metric: "discr_proba/diff"
+opt_dyn_D_threshold: 0.2
+opt_dyn_G_threshold: 0.1
+optim_steps_D: 2
+optim_steps_G: 2
+opt_dyn_D_alpha: 0.1
+opt_dyn_G_alpha: 0.1

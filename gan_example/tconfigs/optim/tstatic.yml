@@ -7,8 +7,8 @@ hparams:
   optim_beta1_D: &optim_beta1_D {{ optim_beta1_D or 0.5 }}
   optim_beta2_D: &optim_beta2_D {{ optim_beta2_D or 0.9 }}
 
-  steps_D: &steps_D {{ optim_steps_D or 1 }}
-  steps_G: &steps_G {{ optim_steps_G or 1 }}
+  steps_D: &steps_D {{ steps_D or 1 }}
+  steps_G: &steps_G {{ steps_G or 1 }}
 
 runner_params:
   # phases

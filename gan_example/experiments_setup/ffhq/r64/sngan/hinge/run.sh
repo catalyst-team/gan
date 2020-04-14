@@ -3,7 +3,7 @@
 # logdir with ALL of the experiments
 MAINLOGDIR=logs/experiments
 # experiment id (relative path in main logdir)
-EXPERIMENT_ID=ffhq/r64/dcgan_optim_C_losses
+EXPERIMENT_ID=ffhq/r64/sngan/hinge
 
 LOGDIR="$MAINLOGDIR/$EXPERIMENT_ID"
 OUTDIR="gan_example/rendered/$EXPERIMENT_ID"
@@ -22,5 +22,5 @@ python catalyst_ext/rendering.py -t \
     --out_dir $OUTDIR \
     --exp_dir $LOGDIR
 
-./$OUTDIR/run_command_check.txt
+#./$OUTDIR/run_command_check.txt
 ./$OUTDIR/run_command.txt

@@ -20,7 +20,7 @@ class Phase:
                  threshold: float = None,
                  alpha: float = 1.0,
                  greater_is_good: bool = None,
-                 do_abs_metric: bool = True):
+                 do_abs_metric: bool = False):
         self.steps = int(steps) if steps is not None else None
         assert 1e-9 < alpha <= 1
         self.alpha = alpha
@@ -53,7 +53,10 @@ class Phase:
         do_step = do_step or (is_greater and self.greater_is_good)
         if do_step:
             self.curr_step = (self.curr_step + 1) % self.steps
-            return self.curr_step == 0
+            phase_finished = self.curr_step == 0
+            if phase_finished:
+                self._prev_metric_value = None
+            return phase_finished
         else:
             return False
 
