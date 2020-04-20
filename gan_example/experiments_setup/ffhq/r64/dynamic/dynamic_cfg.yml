@@ -3,8 +3,8 @@ hparams:
   opt_dyn_G_batch_metric: &opt_dyn_G_batch_metric {{opt_dyn_G_batch_metric}}
   opt_dyn_D_threshold: &opt_dyn_D_threshold {{opt_dyn_D_threshold}}
   opt_dyn_G_threshold: &opt_dyn_G_threshold {{opt_dyn_G_threshold}}
-  steps_D: &steps_D {{ optim_steps_D}}
-  steps_G: &steps_G {{ optim_steps_G}}
+  steps_D: &steps_D {{ steps_D or optim_steps_D}}
+  steps_G: &steps_G {{ steps_G or optim_steps_G}}
   opt_dyn_D_alpha: &opt_dyn_D_alpha {{opt_dyn_D_alpha}}
   opt_dyn_G_alpha: &opt_dyn_G_alpha {{opt_dyn_G_alpha}}
 

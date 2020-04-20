@@ -4,7 +4,7 @@
 # logdir with ALL of the experiments
 MAINLOGDIR=logs/experiments
 # experiment id (relative path in main logdir)
-EXPERIMENT_ID=ffhq/r64/dcgan/dynamic_gan/v002
+EXPERIMENT_ID=ffhq/r64/dcgan/dynamic_gan/v007_enforcing_static
 
 LOGDIR="$MAINLOGDIR/$EXPERIMENT_ID"
 OUTDIR="gan_example/rendered/$EXPERIMENT_ID"
