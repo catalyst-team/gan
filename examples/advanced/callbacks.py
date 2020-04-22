@@ -5,8 +5,10 @@ import torch
 import torchvision.utils
 
 from catalyst.dl import Callback, CallbackOrder, State
-from catalyst.dl.callbacks import MetricManagerCallback, PhaseManagerCallback
+from catalyst.dl.callbacks import MetricManagerCallback
 from catalyst.contrib.utils.tools.tensorboard import SummaryWriter
+
+from catalyst_gan.callbacks import PhaseManagerCallback
 
 
 class VisualizationCallback(Callback):
@@ -85,7 +87,7 @@ class VisualizationCallback(Callback):
 
     def compute_visualizations(self, state):
         input_tensors = [
-            state.batch_in[input_key] for input_key in self.input_keys
+            state.input[input_key] for input_key in self.input_keys
         ]
         output_tensors = [
             state.batch_out[output_key] for output_key in self.output_keys

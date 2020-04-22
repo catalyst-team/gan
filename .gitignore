@@ -142,7 +142,7 @@ _nogit*
 # project
 rendered
 runs*.txt
-!gan_example/fconfigs/data
-!gan_example/tconfigs/data
+!examples/advanced/fconfigs/data
+!examples/advanced/tconfigs/data
 
 

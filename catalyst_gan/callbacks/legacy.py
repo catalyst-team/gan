@@ -90,11 +90,11 @@ class GradientPenaltyCallback(CriterionCallback):
 
     def _compute_metric(self, state: State):
         criterion_kwargs = {
-            self.real_data_criterion_key: state.batch_in[self.input_key],
-            self.fake_data_criterion_key: state.batch_out[self.output_key],
+            self.real_data_criterion_key: state.input[self.input_key],
+            self.fake_data_criterion_key: state.output[self.output_key],
             self.critic_criterion_key: state.model[self.critic_model_key],
             self.condition_args_criterion_key: [
-                state.batch_in[key] for key in self.condition_keys
+                state.input[key] for key in self.condition_keys
             ],
         }
         criterion = state.get_attr("criterion", self.criterion_key)

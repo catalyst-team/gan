@@ -1,4 +1,4 @@
-from catalyst.dl.runner import GanRunner
+from catalyst_gan.core.runner import GanRunner
 
 
 class FullGanRunner(GanRunner):
@@ -13,7 +13,7 @@ class FullGanRunner(GanRunner):
             fake_data, *d_fake_conditions  # no .detach()
         )
         real_logits = self.discriminator(
-            self.state.batch_in[self.data_input_key], *d_real_conditions
+            self.state.input[self.data_input_key], *d_real_conditions
         )
         return {
             self.fake_data_output_key: fake_data,

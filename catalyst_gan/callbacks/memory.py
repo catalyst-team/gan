@@ -131,14 +131,14 @@ class MemoryAccumulatorCallback(Callback):
         for input_key, memory_key in self.input_key.items():
             self.add_to_memory(
                 memory=state.memory[memory_key],
-                items=state.batch_in[input_key],
+                items=state.input[input_key],
                 memory_key=memory_key,
                 max_memory_size=self.memory_size
             )
         for output_key, memory_key in self.output_key.items():
             self.add_to_memory(
                 memory=state.memory[memory_key],
-                items=state.batch_out[output_key].detach(),
+                items=state.output[output_key].detach(),
                 memory_key=memory_key,
                 max_memory_size=self.memory_size
             )

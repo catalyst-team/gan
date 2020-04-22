@@ -43,18 +43,28 @@ The main advantage is to customize your experiments in the yaml config instead o
 
 ```bash
 pip install -r requirements.txt
-pip install catalyst==20.4.1
 ```
 
 # Run examples
 
+## MNIST
+
 ```bash
 # (Goodfellow et. al., 2014: https://arxiv.org/pdf/1406.2661.pdf)
-catalyst-dl run --config=./gan_example/configs/vanilla_gan.yml --verbose
+catalyst-dl run -C examples/mnist/configs/vanilla_gan.yml
 # (Arjovsky et. al., 2017: https://arxiv.org/abs/1701.07875)
-catalyst-dl run --config=./gan_example/configs/wasserstein_gan.yml --verbose
+catalyst-dl run -C examples/mnist/configs/wasserstein_gan.yml
 # (Gulrahani et. al., 2017: https://arxiv.org/abs/1704.00028)
-catalyst-dl run --config=./gan_example/configs/wasserstein_gan_gp.yml --verbose
+catalyst-dl run -C examples/mnist/configs/wasserstein_gan_gp.yml
 # (Mirza and Osindero, 2014: https://arxiv.org/abs/1411.1784)
-catalyst-dl run --config=./gan_example/configs/conditional_gan.yml --verbose
+catalyst-dl run -C examples/mnist/configs/conditional_gan.yml
+```
+
+## Advanced [under construction]
+
+If you want to try right now run from console
+
+(you should download FFHQ dataset before that and specify path in `examples/advanced/tconfigs/data/FFHQ.yml`)
+```bash
+./examples/advanced/experiments_setup/run.sh
 ```

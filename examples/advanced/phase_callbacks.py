@@ -3,8 +3,9 @@ from typing import Dict, List  # isort:skip
 from collections import OrderedDict
 
 from catalyst.core import State
-from catalyst.dl.callbacks import PhaseManagerCallback
 from catalyst.dl import registry
+
+from catalyst_gan.callbacks import PhaseManagerCallback
 
 
 # TODO: remove copy-paste from catalyst.dl.callback.phase
