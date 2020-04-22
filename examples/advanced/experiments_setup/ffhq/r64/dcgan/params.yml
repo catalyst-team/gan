@@ -1,0 +1,21 @@
+# render with:
+# python catalyst_gan/rendering.py -t examples/advanced/tconfigs/config_base.yml examples/advanced/tconfigs/eval/inception/fid.yml examples/advanced/tconfigs/data/FFHQ.yml examples/advanced/tconfigs/tloss.yml examples/advanced/tconfigs/model/r64/dcgan.yml examples/advanced/tconfigs/optim/tstatic_choise.yml -n base eval data loss model optim -p examples/advanced/experiments_setup/params_dcgan.yml --out_dir examples/advanced/rendered/ffhq/r64/dcgan_optim_C_losses
+# ./examples/advanced/rendered/ffhq/r64/dcgan_optim_C_losses/run_command_check.txt
+# ./examples/advanced/rendered/ffhq/r64/dcgan_optim_C_losses/run_command.txt
+# data params ###########
+image_side: 64
+
+# model params ##########
+noise_dim: 100
+
+# evaluation params #####
+#_images_support: 200
+
+# training params #######
+batch_size: 128
+num_epochs: 100
+# loss function #########
+loss: ["hinge", "bce", "wasserstein", "wasserstein_gp"]
+# optimizer params ######
+# use with tstatic_choise
+optim_choise: "C"

@@ -1,8 +1,0 @@
-d_steps: [1, 2, 5]  # GRID
-g_steps: [1, 2, 5]  # GRID
-
-d_alpha: [0.5, 0.7, 1.0]  # GRID
-g_alpha: [0.5, 0.7, 1.0]  # GRID
-
-d_threshold: [0.75]  # GRID
-g_threshold: [0.6]  # GRID
