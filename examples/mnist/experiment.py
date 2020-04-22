@@ -77,3 +77,11 @@ class MnistGanExperiment(ConfigExperiment):
             )
 
         return datasets
+
+    def get_callbacks(self, stage: str):
+        callbacks = super().get_callbacks(stage=stage)
+        # Workaround vs default callbacks
+        for default_cb in ("_criterion", "_optimizer", "_scheduler"):
+            if default_cb in callbacks:
+                del callbacks[default_cb]
+        return callbacks

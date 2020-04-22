@@ -3,12 +3,13 @@
 import torch
 import torchvision.utils
 
-from catalyst.dl.core import Callback, CallbackOrder, State
-from catalyst.utils.tools.tensorboard import SummaryWriter
+from catalyst.dl.callbacks import Callback, CallbackOrder
+from catalyst.core.state import State
+from catalyst.contrib.utils.tools.tensorboard import SummaryWriter
 
 
 class VisualizationCallback(Callback):
-    TENSORBOARD_LOGGER_KEY = "tensorboard"
+    TENSORBOARD_LOGGER_KEY = "_tensorboard"
 
     def __init__(
         self,
@@ -20,7 +21,7 @@ class VisualizationCallback(Callback):
         num_rows=1,
         denorm="default"
     ):
-        super().__init__(CallbackOrder.Other)
+        super().__init__(CallbackOrder.Metric)
         if input_keys is None:
             self.input_keys = []
         elif isinstance(input_keys, str):
@@ -73,10 +74,10 @@ class VisualizationCallback(Callback):
     def _get_tensorboard_logger(state: State) -> SummaryWriter:
         tb_key = VisualizationCallback.TENSORBOARD_LOGGER_KEY
         if (
-            tb_key in state.loggers
-            and state.loader_name in state.loggers[tb_key].loggers
+            tb_key in state.callbacks
+            and state.loader_name in state.callbacks[tb_key].loggers
         ):
-            return state.loggers[tb_key].loggers[state.loader_name]
+            return state.callbacks[tb_key].loggers[state.loader_name]
         raise RuntimeError(
             f"Cannot find Tensorboard logger for loader {state.loader_name}"
         )
@@ -112,7 +113,7 @@ class VisualizationCallback(Callback):
             image = torchvision.utils.make_grid(
                 batch_images, nrow=self._num_rows
             )
-            tb_logger.add_image(key, image, global_step=state.step)
+            tb_logger.add_image(key, image, global_step=state.global_step)
 
     def visualize(self, state):
         visualizations = self.compute_visualizations(state)

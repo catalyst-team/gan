@@ -1,7 +1,2 @@
-catalyst[cv]==20.2
-
-# Used in scripts
+catalyst[cv]==20.4.2
 jinja2
-pandas>=0.22
-safitty>=1.2.3
-tqdm>=4.33.0

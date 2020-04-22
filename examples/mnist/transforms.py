@@ -76,8 +76,8 @@ class OneHotTargetTransform:
 
 
 registry.Transform(AsImage)
-
-registry.Transform(AdditionalNoiseTensor)
-registry.Transform(AdditionalScalar)
-
-registry.Transform(OneHotTargetTransform)
+#
+# registry.Transform(AdditionalNoiseTensor)
+# registry.Transform(AdditionalScalar)
+#
+# registry.Transform(OneHotTargetTransform)
