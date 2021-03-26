@@ -36,6 +36,9 @@ Project [manifest](https://github.com/catalyst-team/catalyst/blob/master/MANIFES
 
 # Catalyst.Gan [WIP]  [![Github contributors](https://img.shields.io/github/contributors/catalyst-team/segmentation.svg?logo=github&logoColor=white)](https://github.com/catalyst-team/gan/graphs/contributors)
 
+> *Note: this repo uses advanced Catalyst Config API and could be a bit out-of-day right now. 
+> Use [Catalyst's minimal examples section](https://github.com/catalyst-team/catalyst#minimal-examples) for a starting point and up-to-day use cases, please.*
+
 You will learn how to train your GAN using the Catalyst framework.
 The main advantage is to customize your experiments in the yaml config instead of the code.
 
